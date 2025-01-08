@@ -15,7 +15,7 @@
 ---
 
 
-Today I had to review some video files from a client and compare it to a legal filing (which came as one large PDF).
+Today I had the task of reviewing a series of video files and compare them to a legal filing (which came as one large PDF).
 
 The videos were longform interviews, so to speed up the review process I wanted to get these into a workable format depending on workflow: video, audio, and text.
 
@@ -58,7 +58,7 @@ echo -en "$(cat legal_filing.txt) \n\n##### START OF TRANSCRIPTS ####\n\n $(cat 
 | bat -l markdown
 ```
 
-The `-s` flag specifies the system prompt for the model (in this case, a very generic one) ; here the 'user' message is the `legal_filing.txt` document, with some custom delimeter I added, then the entire contents of all video `.txt` transcripts in the directory. I then `tee` it so I can review the results as they're generated but also save it to a file. `bat` is a nice bonus just to view some aestetic formatting in the terminal.
+The `-s` flag specifies the system prompt for the model (in this case, a very generic one); here the 'user' message is the `legal_filing.txt` document, with some custom delimeter I added, then the entire contents of all video `.txt` transcripts in the directory. I then `tee` it so I can review the results as they're generated but also save it to a file. `bat` is a nice bonus just to view some aestetic formatting in the terminal.
 
 Finally, we also needed to crawl a related website to get background information. I used Claude to whip up the following script:
 
