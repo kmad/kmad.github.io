@@ -53,12 +53,12 @@ That gave me a `legal_filing.txt` file to work with.
 Now I could pipe these into `llm` however I needed. Ultimately I went with something like the following (note this uses `fish` syntax):
 ```bash
 echo -en "$(cat legal_filing.txt) \n\n##### START OF TRANSCRIPTS ####\n\n $(cat video*.txt)" \
-| llm -s "You will be provided the text of a legal complaint, as well as a series of transcripts from related interviews. Provide an analysis and comparison." \ 
+| llm -s "You will be provided the text of a legal document, as well as a series of transcripts from related interviews. Provide an analysis and comparison." \ 
 | tee analysis_all.md
 | bat -l markdown
 ```
 
-The `-s` flag specifies the system prompt for the model; here the 'user' message is the `legal_filing.md` document, with some custom delimeter I added, then the entire contents of all video `.txt` transcripts in the directory. I then `tee` it so I can review the results as they're generated but also save it to a file. `bat` is a nice bonus just to view some aestetic formatting in the terminal.
+The `-s` flag specifies the system prompt for the model (in this case, a very generic one) ; here the 'user' message is the `legal_filing.txt` document, with some custom delimeter I added, then the entire contents of all video `.txt` transcripts in the directory. I then `tee` it so I can review the results as they're generated but also save it to a file. `bat` is a nice bonus just to view some aestetic formatting in the terminal.
 
 Finally, we also needed to crawl a related website to get background information. I used Claude to whip up the following script:
 
