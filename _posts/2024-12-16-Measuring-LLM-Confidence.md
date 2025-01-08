@@ -207,4 +207,5 @@ As LLMs continue to permeate various aspects of work, ensuring the accuracy and 
 
 
 [^1]: This is calcuated by performing the following: `math.exp(sum(logprob)) * 100`
-X-posted from https://kmad0.github.io
+
+<sub>X-posted from https://kmad0.github.io</sub>
