@@ -67,7 +67,7 @@ As seen above, the release of o3 confirmed the trends identified this paper, at 
 
 ![Significant decrease in timeline](../assets/long_horizon/chart5.jpeg)
 
-They find<sup title="Page 18">18</sup> that the trend from 2019 - 2025 puts us between 2029 and 2031 (within error bars) for AI being able to "reach a 50% time-horizon of 1-month". Not quite "AGI by 2029" but I agree with the authors here: even an AI that can work for a month-equivalent with 50% reliability would have dramatic impacts for how we think about work.
+They find <sup title="Page 18">18</sup> that the trend from 2019 - 2025 puts us between 2029 and 2031 (within error bars) for AI being able to "reach a 50% time-horizon of 1-month". Not quite "AGI by 2029" but I agree with the authors here: even an AI that can work for a month-equivalent with 50% reliability would have dramatic impacts for how we think about work.
 
 The 2024-2025 trend pulls that extrapolation forward, to between the end of 2026 and 2029.
 
