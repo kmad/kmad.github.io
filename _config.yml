@@ -3,7 +3,7 @@ baseurl: /
 permalink: /:title
 lsi: false
 safe: true
-source: /
+source: .
 incremental: false
 highlighter: rouge
 gist:
@@ -12,3 +12,19 @@ kramdown:
   math_engine: mathjax
   syntax_highlighter: rouge
 theme: minima
+
+# Exclude these files from processing
+exclude:
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+  - Gemfile
+  - Gemfile.lock
+  - node_modules/
+  - vendor/
+  - .git/
+  - .gitignore
+  - .DS_Store
+  - Icon?
+  - "Icon\r"
+  - .VolumeIcon.icns
