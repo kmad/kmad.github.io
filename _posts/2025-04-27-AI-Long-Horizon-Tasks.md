@@ -18,7 +18,7 @@ I found this paper to be a rough proxy for measurements we can use to determine 
 
 The first thing that jumps out is the pace: since the release of GPT-2 in 2019, "the length of tasks ... that generalist autonomous frontier model agents can complete with 50% reliability has been doubling approximately every 7 months." More importantly, in evaluating the 2023-2025 time period they also "measure the 80% time horizon of models and find a similar trend, though **horizons are roughly 5x shorter**." 
 
-The tasks chosen for this evaluation were "designed to be realistic" and "economically useful" <sup title="Page 6">6</sup>. In developing the test suite they "observed that real-world intellectual labor consists in part of measurable, single-step actions shorter than 1-minute" <a class="page-ref" title="page 6">[6]</a>. Generally I agree with that view, depending on your responsibilities. For engineers, this could be finding certain files, pulling down documentation, or checking a wikipedia page.
+The tasks chosen for this evaluation were "designed to be realistic" and "economically useful" <sup title="Page 6">6</sup>. In developing the test suite they "observed that real-world intellectual labor consists in part of measurable, single-step actions shorter than 1-minute" <sup title="Page 6">6</sup>. Generally I agree with that view, depending on your responsibilities. For engineers, this could be finding certain files, pulling down documentation, or checking a wikipedia page.
 
 The baseline used was individuals who have attended top-100 universities and have an average of 5 years of relevant experience.
 
@@ -33,7 +33,7 @@ This chart shows it well - showing sustained success probability (y-axis) across
 ![Chart showing AI model capability growth over time](../assets/long_horizon/20250417_chart2.jpeg)
 
 
-The next view is interesting - the authors specifically call out the "trend in 2024 and early 2025 may be faster, with o1 and Claude 3.7 Sonnet lying above the long-run trend ... [while being] robust to methodological ablations like using continuous scoring" [pg 12].
+The next view is interesting - the authors specifically call out the "trend in 2024 and early 2025 may be faster, with o1 and Claude 3.7 Sonnet lying above the long-run trend ... [while being] robust to methodological ablations like using continuous scoring" <sup title="Page 12">12</sup>.
 
 Could this be the start of an s-curve - an acceleration of the trend?
 
