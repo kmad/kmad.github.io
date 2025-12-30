@@ -87,7 +87,7 @@ I ran the dict-sum experiment (500-step horizon, dict size 100, working capacity
 - GPT-OSS 120B: 49%
 - GLM-4.5/4.6: mid-range
 
-Prefix accuracy holds >80% up to ~40-50 steps for top models, dropping gradually—showing reliable long-horizon execution.
+Prefix accuracy holds >80% up to ~40-50 steps for top models, dropping gradually—showing reliable long-horizon execution; though I think there might have been an issue with OpenRouter when I tried `glm-4.5`.
 
 ![Mean full correctness by model](../assets/tasks/mean_correctness_by_model.png)
 
