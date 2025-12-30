@@ -1,6 +1,6 @@
 # Using DSPy to Detect Document Boundaries
 
-DSPy is becomming increasingly popular (at least in my bubble on [X](https://x.com/kmad)) - and, in my opinion, for good reason! It provides a sense of control and composability that becomes addictive once you get a few reps and understand how it all fits together. It allows you to inject LLMs into your program's control flow, providing useful leverage. 
+DSPy is becoming increasingly popular (at least in my bubble on [X](https://x.com/kmad)) - and, in my opinion, for good reason! It provides a sense of control and composability that becomes addictive once you get a few reps and understand how it all fits together. It allows you to inject LLMs into your program's control flow, providing useful leverage. 
 
 Today we'll walk through a super simple application to solve a real-world problem with DSPy and demonstrate a few of its useful capabilities, though we're just scratching the surface here:
 
