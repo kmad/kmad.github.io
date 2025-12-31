@@ -18,7 +18,7 @@ Some think we're hitting a ceiling: I'd submit we're just not measuring the righ
 
 > The excitement around Opus 4.5 is a good example of this; 
 
-A recent pre-print paper, ["The Illusion of Diminishing Returns: Measuring Long Horizon Execution in LLMs"](https://arxiv.org/abs/2509.09677) is an attmpe to measure one dimension: long-horizon instruction following. The authors argue that while many benchmarks emphasize an LLM's ability to plan and reason, isolating execution is key to evaluating long-horizon capabilities.
+A recent pre-print paper, ["The Illusion of Diminishing Returns: Measuring Long Horizon Execution in LLMs"](https://arxiv.org/abs/2509.09677) is an attempt to measure one dimension: long-horizon instruction following. The authors argue that while many benchmarks emphasize an LLM's ability to plan and reason, isolating execution is key to evaluating long-horizon capabilities.
 
 This is the "holy grail" of AI: a long-running agent that can accomplish tasks with accuracy sufficient to delegate economically useful work. The authors drive this home: 
 > *"If the length of tasks a model can complete indicates its economic value, continued investment in scaling compute might be worth the cost, even if short-task benchmarks give the illusion of slowing progress."* 
@@ -31,8 +31,8 @@ The authors tackle this head-on, asserting that "single-turn or short-task bench
 
 METR has done stellar work in this space, evaluating the length of tasks LLMs can reliably accomplish. The paper's authors draw on similar benchmarks, using a 50% task accuracy threshold to project potential gains.
 
-> December update: One of my favorite METR graphs, shows the insanity of Opus 4.5
-![METR December Report](../assets/tasks//METR_December.png)
+> December update: One of my favorite METR graphs shows the insanity of Opus 4.5
+![METR December Report](../assets/tasks/METR_December.png)
 
 This matters on a theoretical level because once step accuracy exceeds 75% and nears 100%, the achievable horizon length *grows faster than exponentially* as a function of that step accuracy.
 
@@ -48,7 +48,7 @@ Notably, thinking models (those with chain-of-thought prompting or similar) didn
 
 The team observed stark differences in performance: DeepSeek V3 struggles with even 2 steps, while R1 can handle *200*. GPT-5 with thinking can execute over 1,000!
 
-A core thesis of the paper is that "diminishing gains on a single step" (think: performance on a basic Q&A benchmark) "can lead to *exponential gains over a long horizon*" (i.e., economically useful capabilities). I liken this to compound interest: A few dollars saved per month may not seem like much in isolation, but over decades, you see the benefits of compounding at owrk. The same principle applies here. Chain together reliable simple tasks, and the zoomed-out impact becomes significant.
+A core thesis of the paper is that "diminishing gains on a single step" (think: performance on a basic Q&A benchmark) "can lead to *exponential gains over a long horizon*" (i.e., economically useful capabilities). I liken this to compound interest: A few dollars saved per month may not seem like much in isolation, but over decades, you see the benefits of compounding at work. The same principle applies here. Chain together reliable simple tasks, and the zoomed-out impact becomes significant.
 
 ![Significant gains](../assets/tasks/gains.png)
 
@@ -102,7 +102,7 @@ These results align with the paper: thinking models sustain high performance ove
 
 The results from this benchmark paint a bullish picture for scaling. Non-thinking models taper off quickly, often crumbling under error accumulation in the context window. But "thinking" variants — leveraging step-by-step reasoning — extend horizons dramatically, sometimes by orders of magnitude. This isn't just academic; it's a signal that investments in compute can and will unlock agents capable of managing workflows like software debugging, data analysis, and other economically useful tasks.
 
-The industry's ask for billions (trillions?) make sense in this light. We're not plateauing; we're on the cusp of compounding gains that could redefine productivity. If long-horizon execution keeps scaling as the paper suggests, the economic payoff will be significant (and, as of December 2025, we may be seeing the first inklings of this now). The AI race isn't just about data, it's building systems that "do" more, reliably, over time, for economically useful tasks.  
+The industry's ask for billions (trillions?) makes sense in this light. We're not plateauing; we're on the cusp of compounding gains that could redefine productivity. If long-horizon execution keeps scaling as the paper suggests, the economic payoff will be significant (and, as of December 2025, we may be seeing the first inklings of this now). The AI race isn't just about data, it's building systems that "do" more, reliably, over time, for economically useful tasks.  
 
 
 # Appendix
