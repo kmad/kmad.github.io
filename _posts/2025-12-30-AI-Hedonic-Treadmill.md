@@ -8,7 +8,7 @@ The concept of the [hedonic treadmill](https://en.wikipedia.org/wiki/Hedonic_tre
 
 There's a narrative that we could be hitting a "data wall", which is the point where scraping more training data from the internet yields diminishing returns, forcing companies to rethink their strategies. Despite this skepticism, hyperscalers are doubling down, committing billions to massive capital expenditures (CAPEX) on AI infrastructure. To some it may seem reckless, but it's a calculated bet on the continued scaling of LLMs, predicated on the assumption that more compute will unlock not just incremental improvements, but transformative economic value. And the levels of CAPEX [have been significant](https://x.com/KobeissiLetter/status/1967969977702682930). The question for most is why pour resources into data centers and semis when benchmarks seem to be plateauing? 
 
-To me it's because the benchmarks are largely saturated and are mostly one-dimensional in what they measure. The industry is still grappling with the best ways to measure long horizon economic value (something [METR](https://metr.org/) has been pioneering).
+To me it's because today's evals are just starting to evolve, and  benchmarks become saturated quickly and are mostly one-dimensional in what they measure. The industry is still grappling with the best ways to measure long horizon economic value (something [METR](https://metr.org/) has been pioneering).
 
 > *December update:* We now have [GDPVal](https://openai.com/index/gdpval/) from OpenAI and an [Economic Index Report](https://www.anthropic.com/research/anthropic-economic-index-september-2025-report) from Anthropic, among others.
 
@@ -27,7 +27,7 @@ Experiments like these likely fuel the aggressive investment we're seeing today.
 
 The authors tackle this head-on, asserting that "single-turn or short-task benchmarks may be an illusory reference for evaluating benefits for further investment in LLM compute." They explain that while single-step benchmarks saturate and lose relevance as indicators of progress—"giving a mirage of slowing progress"—the length of tasks a model can complete, which "*is a better indicator of economic value*," **continues to grow fast**.
 
-Translation: More money → more compute → longer tasks LLMs can complete → more economic value on autopilot. This is precisely why Zuck [said he'd rather misspend than lose the AI race](https://youtu.be/23FyskyFoP8?list=PLYBBGzU9Jm9kJX1OKqW3GdXA17KWCaqij&t=4149).
+ It's pretty simple: More money → more compute → longer tasks LLMs can complete → more economic value on autopilot. This is precisely why Zuck [said he'd rather misspend than lose the AI race](https://youtu.be/23FyskyFoP8?list=PLYBBGzU9Jm9kJX1OKqW3GdXA17KWCaqij&t=4149).
 
 METR has done stellar work in this space, evaluating the length of tasks LLMs can reliably accomplish. The paper's authors draw on similar benchmarks, using a 50% task accuracy threshold to project potential gains.
 
@@ -48,15 +48,15 @@ Notably, thinking models (those with chain-of-thought prompting or similar) didn
 
 The team observed stark differences in performance: DeepSeek V3 struggles with even 2 steps, while R1 can handle *200*. GPT-5 with thinking can execute over 1,000!
 
-A core thesis of the paper is that "diminishing gains on a single step" (think: performance on a basic Q&A benchmark) "can lead to *exponential gains over a long horizon*" (i.e., economically useful capabilities). I liken this to compound interest: A few dollars saved per month might not dazzle in isolation, but over decades, your nest egg balloons. The same principle applies here. Chain together reliable simple tasks, and the zoomed-out impact becomes profound.
+A core thesis of the paper is that "diminishing gains on a single step" (think: performance on a basic Q&A benchmark) "can lead to *exponential gains over a long horizon*" (i.e., economically useful capabilities). I liken this to compound interest: A few dollars saved per month may not seem like much in isolation, but over decades, you see the benefits of compounding at owrk. The same principle applies here. Chain together reliable simple tasks, and the zoomed-out impact becomes significant.
 
 ![Significant gains](../assets/tasks/gains.png)
 
 ## The Experiment
 
-The experiment was cleverly designed to isolate the LLM's long-horizon *execution* ability, stripping away elements of planning and knowledge recall. The core idea? Test how well a model handles a sequence of simple, repetitive tasks—a common failure point for even the largest models.
+The experiment was designed to isolate the LLM's long-horizon *execution* ability, stripping away elements of planning and knowledge recall. The core idea was to test how well a model handles a sequence of simple, repetitive tasks—a common failure point for even the largest models.
 
-The setup is elegantly straightforward: It breaks down a long-horizon task into a basic, stateful operation—adding values from a provided dictionary.
+The setup is fairly straightforward: it breaks down a long-horizon task into a basic, stateful operation—adding values from a provided dictionary.
 
 This approach serves three key purposes:
 - Isolate execution from other skills.
@@ -72,7 +72,7 @@ Starting with a sum of zero, the model's job per turn is:
 
 Task length is tuned via two variables: the number of turns and "turn complexity" (K), or how many keys to process per turn.
 
-It's a deceptively simple test, but any "AGI-like" system should ace it—making failures all the more telling. As noted earlier, the gap between thinking and non-thinking models is eye-opening.
+It's a simple test, but any "AGI-like" system should be able to handle it without issue, making failures that much more interesting. As noted earlier, the gap between thinking and non-thinking models is worth noting.
 
 ![Benchmarks](../assets/tasks/benchmarks.png)
 
@@ -82,7 +82,7 @@ I ran the dict-sum experiment (500-step horizon, dict size 100, working capacity
 
 ![Compiled results](../assets/tasks/compiled_results.png)
 
-**Key findings:**
+**Initial Findings:**
 - GLM-4 32B: 93% full correctness (surprisingly strong!)
 - Grok-4-fast free: 75%
 - Qwen3 235B variants: ~70-42%
@@ -100,9 +100,9 @@ These results align with the paper: thinking models sustain high performance ove
 
 ## Key Takeaways and Why It Matters
 
-The results from this benchmark paint a bullish picture for scaling enthusiasts. Non-thinking models taper off quickly, often crumbling under error accumulation in the context window. But "thinking" variants—leveraging step-by-step reasoning—extend horizons dramatically, sometimes by orders of magnitude. This isn't just academic; it's a signal that investments in compute could unlock agents capable of managing workflows like software debugging, data analysis, or even supply chain optimization without constant human oversight.
+The results from this benchmark paint a bullish picture for scaling. Non-thinking models taper off quickly, often crumbling under error accumulation in the context window. But "thinking" variants — leveraging step-by-step reasoning — extend horizons dramatically, sometimes by orders of magnitude. This isn't just academic; it's a signal that investments in compute can and will unlock agents capable of managing workflows like software debugging, data analysis, and other economically useful tasks.
 
-Zuck's billions make sense in this light. We're not plateauing; we're on the cusp of compounding gains that could redefine productivity. If long-horizon execution keeps scaling as the paper suggests, the economic payoff could justify every dollar. The AI race isn't about scraping more data—it's about building systems that *do* more, reliably, over time. Watch this space; the next jumps might not show up on MMLU scores, but they'll transform how we work.
+The industry's ask for billions (trillions?) make sense in this light. We're not plateauing; we're on the cusp of compounding gains that could redefine productivity. If long-horizon execution keeps scaling as the paper suggests, the economic payoff will be significant (and, as of December 2025, we may be seeing the first inklings of this now). The AI race isn't just about data, it's building systems that "do" more, reliably, over time, for economically useful tasks.  
 
 
 # Appendix
