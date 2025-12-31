@@ -1,4 +1,6 @@
-# Measuring LLM Confidence
+---
+title: Measuring LLM Confidence
+---
 
 Large Language Models (LLMs) have burst into the conversation and have already proven incredibly powerful in accelerating all sorts of knowledge work. Initially explored by the wonderful open source library [instructor](https://useinstructor.com) (and others), the concept of generating *structured outputs* from unstructured text is an extremely powerful yet simple concept. Think PDF in, Excel out; for example, using a vendor contract as an input, we can quickly extract a row of specific datapoints like contract start date, payment terms, or total price. We would argue it will be one of the, if not the most popular capability used by enterprises.
 

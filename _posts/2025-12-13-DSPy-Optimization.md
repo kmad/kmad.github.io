@@ -1,4 +1,6 @@
-# Achieving 20%+ improvement in structured extraction tasks using DSPy and GEPA
+---
+title: Achieving 20 percentage-point improvement in structured extraction tasks using DSPy and GEPA
+---
 
 There's been lots of discussion recently on [DSPy](https://dspy.ai/) and the [GEPA optimizer](https://github.com/gepa-ai/gepa). And for good reason: the results are compelling. As evidenced by the below experiment using automatic prompt optimization, we're seeing 20+ percentage point improvements in exact match accuracy over vanilla LLM structured output calls with little engineering effort required. This simple example demonstrates how much low-hanging fruit there is in prompt optimization and AI engineering in general.
 

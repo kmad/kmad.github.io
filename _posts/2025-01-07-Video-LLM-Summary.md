@@ -1,5 +1,6 @@
-# Summarizing video transcripts with an LLM
-
+---
+title: Summarizing video transcripts with an LLM
+---
 
 #### Tools Used:
 - [bat](https://github.com/sharkdp/bat)
