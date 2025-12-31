@@ -1,5 +1,5 @@
 ---
-title: Acceleration: Notes on 'Measuring AI Ability to Complete Long Tasks'
+title: "Acceleration: Notes on 'Measuring AI Ability to Complete Long Tasks'"
 ---
 
 [Link to Paper](https://arxiv.org/abs/2503.14499)
