@@ -1,5 +1,5 @@
 ---
-title: AI's Hedonic Treadmill
+title: AI's Hedonic Treadmill vs. Task Horizon Exponentials
 ---
 
 > *Originally written September 2025 - a lot has changed between now and December when I'm posting this!*
