@@ -100,9 +100,9 @@ These results align with the paper: thinking models sustain high performance ove
 
 ## Key Takeaways and Why It Matters
 
-The results from this benchmark paint a bullish picture for scaling. Non-thinking models taper off quickly, often crumbling under error accumulation in the context window. But "thinking" variants — leveraging step-by-step reasoning — extend horizons dramatically, sometimes by orders of magnitude. This isn't just academic; it's a signal that investments in compute can and will unlock agents capable of managing workflows like software debugging, data analysis, and other economically useful tasks.
+The results from this benchmark paint a bullish picture for scaling. Non-thinking models taper off quickly, often crumbling under error accumulation in the context window. But reasoning models extend horizons dramatically, sometimes by orders of magnitude. It implies that investments in compute can and will unlock agents capable of managing workflows like software debugging, data analysis, and other economically useful tasks.
 
-The industry's ask for billions (trillions?) makes sense in this light. We're not plateauing; we're on the cusp of compounding gains that could redefine productivity. If long-horizon execution keeps scaling as the paper suggests, the economic payoff will be significant (and, as of December 2025, we may be seeing the first inklings of this now). The AI race isn't just about data, it's building systems that "do" more, reliably, over time, for economically useful tasks.  
+The industry's ask for billions (trillions?) makes sense in this light. If this holds, it would seem we're on the cusp of compounding gains that could redefine productivity. If long-horizon execution keeps scaling as the paper suggests, the economic payoff will be significant (and, as of December 2025, we may be seeing the first inklings of this now). The AI race isn't just about data, it's building systems that "do" more, reliably, over time, for economically useful tasks.  
 
 
 # Appendix
