@@ -90,26 +90,37 @@ print(admin_update_full[3000:])
 Unsurprisingly, it didn't catch everything, and rerunning this a few times during the experiment led to different issues being caught. I'm sure an ensemble approach would do just fine here.
 
 **Summary:**
-| Category | Count |
-|----------|-------|
-| Fully Caught | 3 (#3, #4, #7) |
-| Partially Caught | 3 (#1, #5, #10) |
-| Completely Missed | 4 (#2, #6, #8, #9) |
 
+<table>
+  <thead>
+    <tr><th>Category</th><th>Count</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Fully Caught</td><td>3 (#3, #4, #7)</td></tr>
+    <tr><td>Partially Caught</td><td>3 (#1, #5, #10)</td></tr>
+    <tr><td>Completely Missed</td><td>4 (#2, #6, #8, #9)</td></tr>
+  </tbody>
+</table>
 
 **Lesson Breakdown:**
-| Lesson | Topic | Status     | Notes                                                         |
-|--------|-------|------------|---------------------------------------------------------------|
-| #1     | Event Injection              | Partial | Caught S3 command injection; missed node-serialize code injection          |
-| #2     | Broken Authentication        | Missed  | JWT bypass & open billing API not documented                                |
-| #3     | Sensitive Info Disclosure    | Caught  | Admin receipt access via S3                                                |
-| #4     | Insecure Cloud Config        | Caught  | S3 public write & command injection                                        |
-| #5     | Broken Access Control        | Partial | Caught IDOR/privilege escalation; missed payment bypass                    |
-| #6     | Denial of Service            | Missed  | Billing concurrency abuse not mentioned                                    |
-| #7     | Over-Privileged Functions    | Caught  | Comprehensive IAM policy violations                                        |
-| #8     | Logic Vulnerabilities        | Missed  | Race condition/TOCTOU not documented                                       |
-| #9     | Vulnerable Dependencies      | Missed  | node-serialize, node-jose, shell-quote not mentioned                       |
-| #10    | Unhandled Exceptions         | Partial | Generic error disclosure noted; specific examples missed                   |
+
+<table>
+  <thead>
+    <tr><th>Lesson</th><th>Topic</th><th>Status</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>#1</td><td>Event Injection</td><td>Partial</td><td>Caught S3 command injection; missed node-serialize code injection</td></tr>
+    <tr><td>#2</td><td>Broken Authentication</td><td>Missed</td><td>JWT bypass &amp; open billing API not documented</td></tr>
+    <tr><td>#3</td><td>Sensitive Info Disclosure</td><td>Caught</td><td>Admin receipt access via S3</td></tr>
+    <tr><td>#4</td><td>Insecure Cloud Config</td><td>Caught</td><td>S3 public write &amp; command injection</td></tr>
+    <tr><td>#5</td><td>Broken Access Control</td><td>Partial</td><td>Caught IDOR/privilege escalation; missed payment bypass</td></tr>
+    <tr><td>#6</td><td>Denial of Service</td><td>Missed</td><td>Billing concurrency abuse not mentioned</td></tr>
+    <tr><td>#7</td><td>Over-Privileged Functions</td><td>Caught</td><td>Comprehensive IAM policy violations</td></tr>
+    <tr><td>#8</td><td>Logic Vulnerabilities</td><td>Missed</td><td>Race condition/TOCTOU not documented</td></tr>
+    <tr><td>#9</td><td>Vulnerable Dependencies</td><td>Missed</td><td>node-serialize, node-jose, shell-quote not mentioned</td></tr>
+    <tr><td>#10</td><td>Unhandled Exceptions</td><td>Partial</td><td>Generic error disclosure noted; specific examples missed</td></tr>
+  </tbody>
+</table>
 
 
 
@@ -117,12 +128,17 @@ Unsurprisingly, it didn't catch everything, and rerunning this a few times durin
 
 The RLM approach failed to detect 4 out of the 10 lessons identified in the security review. Specifically, the following categories were completely missed (which kimi also helped summarize):
 
-| Completely Missed | Description |
-|-------------------|-------------|
-| #2                | Broken Authentication: Issues like JWT bypass and open billing API vulnerabilities were not flagged. |
-| #6                | Denial of Service: The model overlooked potential for abuse via billing concurrency, which could enable attackers to deliberately exhaust system resources. |
-| #8                | Logic Vulnerabilities: Race conditions and time-of-check-to-time-of-use (TOCTOU) flaws, which often require awareness of timing and system state transitions, were not identified. |
-| #9                | Vulnerable Dependencies: The presence of known-vulnerable libraries (such as node-serialize, node-jose, shell-quote) went undetected by the static analysis pipeline. |
+<table>
+  <thead>
+    <tr><th>Completely Missed</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>#2</td><td>Broken Authentication: Issues like JWT bypass and open billing API vulnerabilities were not flagged.</td></tr>
+    <tr><td>#6</td><td>Denial of Service: The model overlooked potential for abuse via billing concurrency, which could enable attackers to deliberately exhaust system resources.</td></tr>
+    <tr><td>#8</td><td>Logic Vulnerabilities: Race conditions and time-of-check-to-time-of-use (TOCTOU) flaws, which often require awareness of timing and system state transitions, were not identified.</td></tr>
+    <tr><td>#9</td><td>Vulnerable Dependencies: The presence of known-vulnerable libraries (such as node-serialize, node-jose, shell-quote) went undetected by the static analysis pipeline.</td></tr>
+  </tbody>
+</table>
 
 The results are instructive. Each of these misses highlights areas where RLM-based static analysis struggles: vulnerabilities that hinge on nuanced runtime behavior, system workflow, or external package risk—issues that often escape detection without dynamic techniques or explicit vulnerability lists. These seem entirely solvable with just a bit of scaffolding and tool calling.
 
