@@ -4,7 +4,7 @@ title: "Auditing a Codebase for 87 cents in 50 lines of code using RLMs"
 
 Before we begin: *Of course* this doesn't replace a proper (human) audit or security testing process, nor should it. But this was a fun afternoon experiment.
 
-I wanted to try DSPy’s new **Recursive Language Model (RLM)** module for something deeper than just codebase documentation, as inspired by [@dbreunig](https://gist.github.com/dbreunig/bab62de16f173f040bb51453b32c6aa2). Instead of generating docs over a codebase, why not something a little more substantive, like a security audit?
+I wanted to try DSPy’s new **Recursive Language Model (RLM)** module for something deeper than just codebase documentation, as inspired by [@dbreunig](https://gist.github.com/dbreunig/bab62de16f173f040bb51453b32c6aa2). [In short](https://alexzhang13.github.io/blog/2025/rlm/), RLMs allow AI models to break down problems into their component parts and have sub-LLMs do analysis on their behalf. Instead of generating docs over a codebase, why not something a little more substantive, like a security audit?
 
 Here’s the approach: clone the OWASP Damn Vulnerable Serverless Application (DVSA) (a purposely insecure project) and run RLM against it. In theory it should explore the codebase, break down the target areas and hand off to sub-lms for further analysis. The useful part here is that we have a `LESSONS` folder that we can compare our results to (we'll remove this from the context before starting so it can't cheat).
 
@@ -13,7 +13,7 @@ After modifying Drew's script, I ran it with `kimi-k2.5` and `grok-4` on openrou
 
 ### The Setup
 
-The entire pipeline is almost embarrassingly simple:
+The entire pipeline is almost embarrassingly simple and is ~50 lines of code. All the code does is read the target codebase and construct a mapping of folder -> file and holds its content.
 
 ```python
 import dspy
@@ -36,7 +36,16 @@ class CodeScanner(dspy.Signature):
   documentation: str = dspy.OutputField(description="Generated markdown documentation.")
 
 def load_source_tree(root_dir: str) -> dict[str, Any]:
-    ...
+    """Recursively load the folder into a nested dict."""
+    tree: dict[str, Any] = {}
+    for entry in os.listdir(root_dir):
+        path = os.path.join(root_dir, entry)
+        if os.path.isdir(path):
+            tree[entry] = load_source_tree(path)
+        else:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                tree[entry] = f.read()
+    return tree
 
 source_root = "~/dev/DVSA/"
 source_tree = load_source_tree(source_root)
@@ -54,7 +63,7 @@ source_tree = load_source_tree("~/dev/DVSA/")
 result = code_scanner(source_tree=source_tree)
 ```
 
-That's it. The `dspy.RLM` handles all the recursive decomposition where the module breaks down the codebase analysis into subtasks, delegates to the sub-language model, and synthesizes results automatically. In this case the sub-lm is the same as the main.
+50 lines of code - that's it. The `dspy.RLM` handles all the recursive decomposition where the module breaks down the codebase analysis into subtasks, delegates to the sub-language model, and synthesizes results automatically. In this case the sub-lm is the same as the main.
 
 ## Results
 
