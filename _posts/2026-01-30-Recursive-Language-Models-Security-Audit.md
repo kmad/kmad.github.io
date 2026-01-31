@@ -59,7 +59,6 @@ code_scanner = dspy.RLM(
 )
 
 # Load and run
-source_tree = load_source_tree("~/dev/DVSA/")
 result = code_scanner(source_tree=source_tree)
 ```
 
@@ -98,20 +97,10 @@ print(admin_update_full[3000:])
 
 Unsurprisingly, it didn't catch everything, and rerunning this a few times during the experiment led to different issues being caught. I'm sure an ensemble approach would do just fine here.
 
-**Summary:**
-
-<table>
-  <thead>
-    <tr><th>Category</th><th>Count</th></tr>
-  </thead>
-  <tbody>
-    <tr><td>Fully Caught</td><td>3 (#3, #4, #7)</td></tr>
-    <tr><td>Partially Caught</td><td>3 (#1, #5, #10)</td></tr>
-    <tr><td>Completely Missed</td><td>4 (#2, #6, #8, #9)</td></tr>
-  </tbody>
-</table>
 
 **Lesson Breakdown:**
+
+Comparing to the OWASP Repo, we can see how it did on certain lessons:
 
 <table>
   <thead>
