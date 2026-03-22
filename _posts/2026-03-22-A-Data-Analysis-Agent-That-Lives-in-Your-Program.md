@@ -114,7 +114,8 @@ Here you see we can define very specific fields: churn rate (`float`), worst cha
 That's pretty much it—you now have an in-line RLM that will recursively explore the data until it is ready to produce your typed responses.
 
 I recommend enabling verbose output; it's fascinating to watch the LLM reason through the data step by step:
-<details>
+
+<details markdown="1">
 <summary><strong> (click to expand) Show RLM step-by-step reasoning excerpts </strong></summary>
 
 <pre>
