@@ -12,15 +12,15 @@ The core premise of an RLM is to embed an LLM inside a REPL, giving it access to
 
 According to Omar (the paper’s co-author), a model qualifies as an RLM if:
 
-> 1. The user prompt is a symbolic object (variable, file, etc.) rather than just a sequence of tokens in the Transformer context window,
+> - The user prompt is a symbolic object (variable, file, etc.) rather than just a sequence of tokens in the Transformer context window,
 >
 > *and*
 >
-> 2. The model must interact with that symbolic object by writing code in a persistent REPL environment,
+> - The model must interact with that symbolic object by writing code in a persistent REPL environment,
 > 
 > *and*
 > 
-> 3. The code that the model writes must be able to invoke an LLM/RLM inside the REPL (e.g., within loops or recursive functions), and—crucially—not as a discrete sub-agent tool.
+> - The code that the model writes must be able to invoke an LLM/RLM inside the REPL (e.g., within loops or recursive functions), and—crucially—not as a discrete sub-agent tool.
 
 This concept is straightforward. The initial RLM implementation focused on *strings* accessed as variables in the REPL. But, of course, a REPL can support all sorts of types. Allowing an LLM to work with direct access to native variables lets it freely navigate and explore the contours of the data without you having to specify everything up front. Depending on your use case, this can be incredibly powerful.
 
