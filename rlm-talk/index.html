@@ -1,0 +1,1404 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recursive Language Models — Context as Environment</title>
+  <style>
+    :root {
+      --bg-1: #0e1b30;
+      --bg-2: #0a1322;
+      --bg-3: #070d18;
+      --ink: #eef3fb;
+      --bright: #ffffff;
+      --muted: #e3e3e3;
+      --faint: hsl(193, 85%, 84%);
+      --accent: #5b9dff;
+      --accent-dim: #3f6fb5;
+      --warn: #e4685d;
+      --agent: #d7b7f5;
+      --line: rgba(180, 205, 240, 0.12);
+      --panel: #10203a;
+      --panel-line: rgba(120, 160, 220, 0.22);
+      --sans: "Helvetica Neue", Helvetica, Arial, "Inter", system-ui, sans-serif;
+      --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        radial-gradient(120% 90% at 78% 8%, rgba(91, 157, 255, 0.10), transparent 55%),
+        linear-gradient(158deg, var(--bg-1) 0%, var(--bg-2) 58%, var(--bg-3) 100%);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .deck { width: 100vw; height: 100vh; overflow: hidden; }
+    .track { display: flex; height: 100%; transition: transform 460ms cubic-bezier(0.45, 0, 0.18, 1); will-change: transform; }
+
+    .slide {
+      flex: 0 0 100vw; width: 100vw; height: 100vh;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: clamp(48px, 5vw, 96px) clamp(64px, 12vw, 220px) clamp(72px, 7vw, 120px) clamp(48px, 7vw, 130px);
+    }
+    .slide.center { align-items: center; text-align: center; padding-left: clamp(48px, 8vw, 160px); padding-right: clamp(48px, 8vw, 160px); }
+
+    .eyebrow {
+      font-size: clamp(11px, 0.85vw, 13px);
+      letter-spacing: 0.26em; text-transform: uppercase;
+      color: var(--accent); font-weight: 700;
+      margin-bottom: clamp(22px, 2.6vw, 40px);
+    }
+
+    h1 { margin: 0; font-weight: 800; font-size: clamp(52px, 7.4vw, 132px); line-height: 0.95; letter-spacing: -0.03em; color: var(--bright); }
+    h2 { margin: 0; font-weight: 800; font-size: clamp(40px, 5.6vw, 96px); line-height: 0.98; letter-spacing: -0.028em; max-width: 17ch; color: var(--bright); }
+    h2.long { max-width: 22ch; font-size: clamp(36px, 4.7vw, 78px); }
+
+    .lines { margin-top: clamp(26px, 3vw, 48px); display: grid; gap: clamp(14px, 1.5vw, 24px); max-width: 58ch; }
+    .lines.tight { gap: clamp(10px, 1vw, 16px); }
+    p.line { margin: 0; font-size: clamp(17px, 1.7vw, 30px); line-height: 1.38; color: var(--muted); font-weight: 400; letter-spacing: -0.005em; }
+    p.line b { color: var(--bright); font-weight: 700; }
+    p.line i { color: var(--ink); font-style: italic; }
+    p.line .mono { font-family: var(--mono); font-size: 0.86em; color: var(--accent); }
+
+    /* section dividers */
+    .divider .sec-num { font-size: clamp(72px, 13vw, 230px); font-weight: 800; line-height: 0.82; letter-spacing: -0.05em; color: var(--accent); }
+    .divider h2 { margin-top: clamp(16px, 2vw, 30px); }
+    .divider .lines { justify-items: center; }
+
+    /* big single number */
+    .figure { font-weight: 800; letter-spacing: -0.04em; font-size: clamp(60px, 9vw, 168px); line-height: 0.9; color: var(--accent); }
+    .figure .unit { color: var(--muted); }
+
+    /* two-up figure row */
+    .figrow { display: flex; flex-wrap: wrap; gap: clamp(36px, 6vw, 110px); margin-top: clamp(20px, 2.4vw, 36px); }
+    .stat .n { font-size: clamp(46px, 6.4vw, 104px); font-weight: 800; letter-spacing: -0.04em; line-height: 0.88; color: var(--accent); }
+    .stat .l { margin-top: clamp(12px, 1.3vw, 18px); color: var(--muted); max-width: 24ch; font-size: clamp(15px, 1.25vw, 21px); line-height: 1.35; }
+    .stat .l b { color: var(--bright); font-weight: 700; }
+
+    /* sparse code */
+    pre.code {
+      margin: clamp(24px, 2.6vw, 40px) 0 0; padding: clamp(18px, 1.8vw, 28px) clamp(22px, 2.2vw, 36px);
+      background: var(--panel); border: 1px solid var(--panel-line); border-radius: 12px;
+      font-family: var(--mono); font-size: clamp(12px, 1.05vw, 17px); line-height: 1.7;
+      color: var(--ink); white-space: pre; overflow: hidden;
+      width: fit-content; max-width: 100%;
+    }
+    pre.code.scroll-x { overflow-x: auto; overflow-y: hidden; white-space: pre; line-height: 1.5; padding: clamp(14px, 1.4vw, 20px) clamp(18px, 1.9vw, 28px); }
+    pre.code .c { color: var(--faint); }
+    pre.code .k { color: var(--accent); }
+    pre.code .s { color: #9ec5ff; }
+    pre.code .type { color: #7fd6b0; }   /* types: float, str, DataFrame … */
+    pre.code .id { color: #d7b7f5; }      /* field / identifier names */
+
+    /* worked-example: two columns + step flow */
+    h2.ex { font-size: clamp(28px, 3.4vw, 54px); max-width: 20ch; }
+    .two { display: grid; grid-template-columns: 1.02fr 0.98fr; gap: clamp(28px, 4vw, 76px); align-items: center; width: 100%; margin-top: clamp(22px, 2.6vw, 40px); }
+    .two .col { min-width: 0; }
+    .two pre.code { margin-top: 0; }
+    .two.with-img { align-items: center; margin-top: 0; }
+    .two.with-img .img-col { display: flex; align-items: center; justify-content: center; }
+    .two.with-img .img-col img {
+      width: 100%; height: auto; max-height: min(72vh, 640px); object-fit: contain;
+      border-radius: 10px; border: 1px solid var(--panel-line); background: #fff;
+    }
+    .two.with-img .img-col img.img-dark { background: transparent; border: 0; }
+    /* full-bleed framed image slide */
+    .slide-img-frame { display: flex; align-items: center; justify-content: center; width: 100%; margin-top: clamp(16px, 1.8vw, 28px); }
+    .slide-img-frame img { width: 100%; max-width: min(90vw, 1360px); max-height: 74vh; height: auto; object-fit: contain; border-radius: 14px; border: 1px solid var(--panel-line); background: #09090b; }
+    .slide-img-frame.tall img { max-width: min(46vw, 560px); max-height: 66vh; }
+    .slide-img-frame.light img { background: #f8fafd; max-height: 70vh; padding: clamp(8px, 0.9vw, 16px); }
+    .slide-img-frame.wide img { max-width: min(74vw, 1000px); max-height: 58vh; }
+    .slide-img-frame.med img { max-height: 64vh; }
+    /* full-bleed image-only slide */
+    .slide.full-img { padding: clamp(20px, 2.6vw, 52px); }
+    .full-img img { width: 100%; height: auto; max-height: 90vh; object-fit: contain; border-radius: 10px; }
+    /* invoice input -> output flow */
+    .io-flow { display: grid; grid-template-columns: 0.82fr auto 1.18fr; align-items: center; gap: clamp(20px, 3vw, 60px); width: 100%; margin-top: clamp(20px, 2.4vw, 40px); }
+    .io-col { display: grid; justify-items: center; gap: clamp(10px, 1.2vw, 18px); min-width: 0; }
+    .io-lbl { font-family: var(--mono); font-size: clamp(10px, 0.86vw, 14px); color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; }
+    .io-pdfs { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px, 1.2vw, 20px); width: 100%; }
+    .io-pdfs img { width: 100%; height: auto; object-fit: contain; border-radius: 8px; border: 1px solid var(--panel-line); background: #fff; box-shadow: 0 6px 26px rgba(0,0,0,0.34); }
+    .io-sheet { width: 100%; max-width: min(52vw, 720px); height: auto; object-fit: contain; border-radius: 10px; border: 1px solid var(--panel-line); background: #f8fafd; padding: clamp(6px, 0.8vw, 14px); }
+    .io-arrow { font-size: clamp(30px, 3.6vw, 68px); line-height: 1; color: var(--accent-dim); text-align: center; }
+    .img-cap { margin-top: clamp(14px, 1.6vw, 24px); color: var(--muted); font-size: clamp(14px, 1.25vw, 22px); line-height: 1.42; max-width: 68ch; }
+    .img-cap b { color: var(--accent); font-weight: 700; }
+
+    /* slide 8 — when to use / not (big-board fit lists) */
+    .slide.fit-slide { padding-left: clamp(48px, 7vw, 150px); padding-right: clamp(48px, 7vw, 150px); }
+    .fit-head { text-align: center; font-weight: 800; letter-spacing: -0.028em; color: var(--bright); font-size: clamp(40px, 5.6vw, 104px); line-height: 0.98; margin: 0; }
+    .fit { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(44px, 6vw, 130px); width: 100%; margin-top: clamp(34px, 4.4vw, 76px); text-align: left; }
+    .fit .col-head { font-weight: 800; letter-spacing: -0.01em; font-size: clamp(24px, 2.7vw, 52px); margin: 0 0 clamp(18px, 2vw, 34px); }
+    .fit .use .col-head { color: var(--accent); }
+    .fit .skip .col-head { color: var(--muted); }
+    .fit ul { list-style: none; margin: 0; padding: 0; display: grid; gap: clamp(16px, 2.1vw, 38px); }
+    .fit li { position: relative; padding-left: clamp(26px, 2.2vw, 46px); font-size: clamp(21px, 2.2vw, 44px); line-height: 1.15; color: var(--ink); font-weight: 600; }
+    .fit li::before { content: ""; position: absolute; left: 0; top: 0.42em; width: clamp(10px, 0.9vw, 17px); height: clamp(10px, 0.9vw, 17px); border-radius: 50%; }
+    .fit .use li::before { background: var(--accent); }
+    .fit .skip li::before { background: var(--faint); }
+    .fit li small { display: block; color: var(--muted); font-weight: 400; font-size: 0.6em; line-height: 1.25; margin-top: 0.2em; }
+    .note { margin-top: clamp(16px, 1.6vw, 24px); color: var(--muted); font-size: clamp(14px, 1.2vw, 20px); line-height: 1.4; }
+    .note b { color: var(--bright); font-weight: 700; }
+    .note .mono { font-family: var(--mono); font-size: 0.86em; color: var(--accent); }
+
+    .steps { display: grid; gap: clamp(13px, 1.5vw, 21px); }
+    .step { display: grid; grid-template-columns: 18px 1fr; gap: 15px; position: relative; }
+    .step:not(:last-child)::before { content: ""; position: absolute; left: 6px; top: 19px; bottom: calc(-1 * clamp(13px, 1.5vw, 21px)); width: 2px; background: var(--line); }
+    .step .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--accent-dim); background: var(--bg-2); margin-top: 3px; z-index: 1; }
+    .step.done .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px rgba(91, 157, 255, 0.16); }
+    .step b { display: block; color: var(--bright); font-weight: 700; font-size: clamp(15px, 1.35vw, 22px); line-height: 1.15; }
+    .step span { display: block; color: var(--muted); font-size: clamp(12px, 1.02vw, 16px); margin-top: 4px; line-height: 1.3; }
+    .step.done b { color: var(--accent); }
+    .steps .cap { margin-top: clamp(6px, 0.8vw, 12px); padding-left: 33px; color: var(--faint); font-size: clamp(12px, 0.95vw, 15px); line-height: 1.35; }
+    .steps .cap b { color: var(--muted); font-weight: 700; }
+
+    /* cohort step animation */
+    .thought {
+      margin-bottom: clamp(14px, 1.6vw, 22px);
+      padding: clamp(12px, 1.2vw, 18px) clamp(14px, 1.4vw, 20px);
+      background: rgba(91, 157, 255, 0.06);
+      border: 1px solid var(--panel-line);
+      border-radius: 10px;
+      min-height: clamp(72px, 8vw, 108px);
+      transition: border-color 280ms, background 280ms;
+    }
+    .thought.active { border-color: rgba(91, 157, 255, 0.42); background: rgba(91, 157, 255, 0.10); }
+    .thought.done { border-color: rgba(91, 157, 255, 0.28); }
+    .thought-h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .thought-h .lbl {
+      font-family: var(--mono); font-size: clamp(10px, 0.82vw, 12px);
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .thought-h .turn {
+      margin-left: auto; font-family: var(--mono); font-size: clamp(10px, 0.78vw, 12px);
+      color: var(--faint);
+    }
+    .thought p {
+      margin: 0; color: var(--muted); font-size: clamp(12px, 1.02vw, 16px); line-height: 1.42;
+      transition: opacity 320ms;
+    }
+    .thought p b { color: var(--bright); font-weight: 600; }
+    .thought pre {
+      margin: clamp(8px, 0.9vw, 12px) 0 0; padding: clamp(8px, 0.8vw, 12px) clamp(10px, 1vw, 14px);
+      background: var(--panel); border-radius: 6px; border: 1px solid var(--panel-line);
+      font-family: var(--mono); font-size: clamp(9px, 0.78vw, 12px); line-height: 1.5;
+      color: var(--ink); white-space: pre-wrap; overflow: auto; max-height: min(34vh, 280px);
+    }
+    .thought pre .c { color: var(--faint); }
+    .thought pre .k { color: var(--accent); }
+    .steps.anim .step { opacity: 0.32; transition: opacity 360ms ease; }
+    .steps.anim .step.active { opacity: 1; }
+    .steps.anim .step.done { opacity: 1; }
+    .steps.anim .step.active .dot {
+      background: var(--accent); border-color: var(--accent);
+      box-shadow: 0 0 0 5px rgba(91, 157, 255, 0.18);
+      animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 5px rgba(91, 157, 255, 0.18); }
+      50% { box-shadow: 0 0 0 9px rgba(91, 157, 255, 0.08); }
+    }
+    /* cohort slide: progression left, code wider + bigger on the right */
+    .cohort-layout { grid-template-columns: 0.74fr 1.26fr; align-items: start; }
+    .cohort-layout .steps { margin-top: clamp(18px, 2vw, 30px); }
+    .cohort-layout .thought {
+      margin-bottom: 0;
+      min-height: clamp(280px, 42vh, 560px);
+      padding: clamp(16px, 1.5vw, 24px) clamp(18px, 1.7vw, 26px);
+    }
+    .cohort-layout .thought p { font-size: clamp(14px, 1.22vw, 20px); line-height: 1.45; }
+    .cohort-layout .thought pre {
+      font-size: clamp(12px, 1.02vw, 16px); line-height: 1.55;
+      max-height: min(54vh, 480px);
+      margin-top: clamp(12px, 1.2vw, 18px);
+      padding: clamp(12px, 1.1vw, 16px) clamp(14px, 1.3vw, 18px);
+    }
+    .step-hint {
+      margin-top: clamp(10px, 1vw, 14px); padding-left: 33px;
+      font-size: clamp(11px, 0.9vw, 14px); color: var(--faint);
+      font-family: var(--mono); letter-spacing: 0.02em;
+    }
+    .step-hint kbd {
+      display: inline-block; padding: 1px 6px; border-radius: 4px;
+      border: 1px solid var(--panel-line); background: var(--panel); color: var(--muted);
+      font-family: inherit; font-size: 0.92em;
+    }
+
+    /* slide 5 — context window vs. variable */
+    .flow-table { width: 100%; border-collapse: collapse; font-size: clamp(13px, 1.18vw, 20px); }
+    .flow-table th {
+      text-align: left; color: var(--muted); font-weight: 600;
+      padding: 0.45em 1em 0.55em 0; border-bottom: 1px solid var(--panel-line);
+    }
+    .flow-table tbody tr {
+      opacity: 0.4; transition: opacity 300ms ease;
+      border-bottom: 1px solid var(--line);
+    }
+    .flow-table tbody tr.rlm-row { border-top: 1.5px solid var(--panel-line); border-bottom: 0; }
+    .flow-table tbody tr.on { opacity: 1; }
+    .flow-table td { padding: 0.5em 1em 0.5em 0; color: var(--ink); line-height: 1.3; }
+    .flow-table td:last-child { padding-right: 0; color: var(--muted); }
+    .flow-table tbody tr.on td:last-child { color: var(--ink); }
+    .flow-table td b { color: var(--bright); font-weight: 700; }
+    .flow-table tbody tr.on td b { color: var(--accent); }
+    .flow-insight {
+      margin: clamp(16px, 1.8vw, 26px) 0 0; color: var(--muted);
+      font-size: clamp(14px, 1.2vw, 20px); line-height: 1.42; max-width: 40ch;
+    }
+    .flow-insight b { color: var(--bright); font-weight: 700; }
+
+    .cw { width: 100%; display: grid; gap: clamp(8px, 0.9vw, 13px); }
+    .cw-frame-label { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .cw-badge {
+      font-family: var(--mono); font-weight: 700; font-size: clamp(13px, 1.15vw, 19px);
+      color: var(--bright); background: var(--accent-dim);
+      padding: 3px 12px; border-radius: 7px; letter-spacing: 0.02em;
+    }
+    .cw-frame-label.rlm .cw-badge { background: var(--accent); color: #06122a; }
+    .cw-sub { color: var(--muted); font-size: clamp(12px, 1.02vw, 17px); }
+
+    .cw-store {
+      border: 1px dashed var(--panel-line); border-radius: 10px;
+      padding: clamp(10px, 1vw, 15px) clamp(13px, 1.3vw, 18px);
+      background: rgba(255, 255, 255, 0.02); transition: border-color 320ms, background 320ms;
+    }
+    .cw-store.var { border-style: solid; border-color: rgba(91, 157, 255, 0.5); background: rgba(91, 157, 255, 0.08); }
+    .cw-store-head {
+      font-family: var(--mono); font-size: clamp(10px, 0.85vw, 13px);
+      color: var(--muted); letter-spacing: 0.04em;
+    }
+    .cw-store.var .cw-store-head { color: var(--accent); }
+    .cw-store-body { display: flex; flex-wrap: wrap; gap: 3px; margin-top: clamp(8px, 0.9vw, 12px); }
+    .cw-store-body i { width: clamp(11px, 1.1vw, 17px); height: 6px; border-radius: 2px; background: var(--faint); display: block; }
+    .cw-store.var .cw-store-body i { background: var(--accent-dim); }
+
+    .cw-arrow {
+      text-align: center; font-family: var(--mono); color: var(--faint);
+      font-size: clamp(10px, 0.88vw, 13px); letter-spacing: 0.02em;
+    }
+    .cw-arrow .a { color: var(--accent-dim); }
+    .cw-store.var ~ .cw-arrow .a { color: var(--accent); }
+
+    .cw-window {
+      border: 1px solid var(--panel-line); border-radius: 10px; background: var(--panel);
+      padding: clamp(12px, 1.2vw, 18px) clamp(14px, 1.4vw, 20px);
+      transition: border-color 320ms;
+    }
+    .cw-window.overflow { border-color: rgba(255, 130, 120, 0.5); }
+    .cw-window.lean { border-color: rgba(91, 157, 255, 0.5); }
+    .cw-win-head {
+      font-family: var(--mono); font-size: clamp(9px, 0.78vw, 12px);
+      color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: clamp(8px, 0.9vw, 12px);
+    }
+    .cw-win-body {
+      font-family: var(--mono); font-size: clamp(11px, 0.92vw, 14px); line-height: 1.62;
+      color: var(--ink); white-space: pre-wrap; min-height: clamp(96px, 11vw, 150px);
+    }
+    .cw-win-body .c { color: var(--faint); }
+    .cw-win-body .k { color: var(--accent); }
+    .cw-win-body .s { color: #9ec5ff; }
+    .cw-win-body .hl { color: #9ec5ff; }
+    .cw-win-body .warn { color: #ff9b9b; }
+    .cw-meter { height: 8px; border-radius: 5px; background: rgba(255, 255, 255, 0.06); overflow: hidden; margin-top: clamp(12px, 1.3vw, 18px); }
+    .cw-meter-fill {
+      height: 100%; width: 0;
+      background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+      transition: width 520ms cubic-bezier(0.4, 0, 0.2, 1), background 320ms;
+    }
+    .cw-window.overflow .cw-meter-fill { background: linear-gradient(90deg, #c2693f, #ff7a6b); }
+    .cw-window.lean .cw-meter-fill { background: linear-gradient(90deg, #3f6fb5, #5b9dff); }
+    .cw-meter-label { font-family: var(--mono); font-size: clamp(10px, 0.82vw, 13px); color: var(--muted); margin-top: 6px; }
+
+    .cw-take {
+      color: var(--muted); font-size: clamp(13px, 1.08vw, 18px); line-height: 1.4;
+      min-height: clamp(40px, 4.4vw, 60px); margin-top: clamp(4px, 0.6vw, 9px);
+    }
+    .cw-take b { color: var(--bright); font-weight: 700; }
+
+    /* trajectory excerpts */
+    .turns { display: grid; gap: clamp(15px, 1.8vw, 26px); width: 100%; margin-top: clamp(22px, 2.6vw, 40px); }
+    .two .turns { margin-top: 0; max-height: min(72vh, 620px); overflow: auto; padding-right: 4px; }
+    .turn-h { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; font-size: clamp(14px, 1.25vw, 20px); color: var(--bright); font-weight: 700; }
+    .turn-h .n { font-family: var(--mono); font-size: 0.78em; color: var(--accent); border: 1px solid var(--panel-line); border-radius: 6px; padding: 2px 8px; }
+    .turn-h .r { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 0.82em; }
+    pre.code.mini { margin: 0; font-size: clamp(11px, 0.95vw, 15px); line-height: 1.6; padding: clamp(12px, 1.3vw, 18px) clamp(15px, 1.6vw, 22px); }
+    pre.code.sig { margin: 0; font-size: clamp(11px, 1.0vw, 15px); line-height: 1.5; padding: clamp(14px, 1.4vw, 20px) clamp(16px, 1.6vw, 22px); overflow: auto; max-height: min(74vh, 640px); width: 100%; white-space: pre-wrap; }
+    /* slide 12 — give the signature code more room */
+    .two.code-wide { grid-template-columns: 0.66fr 1.34fr; }
+
+    h3.subtitle { margin: clamp(14px, 1.4vw, 22px) 0 0; font-size: clamp(22px, 2.2vw, 38px); line-height: 1.2; font-weight: 500; color: var(--muted); letter-spacing: -0.01em; }
+
+    /* signature-as-contract visualization */
+    .sv { display: grid; grid-template-columns: 1fr; gap: clamp(7px, 0.8vw, 12px); width: 100%; max-width: 980px; margin-top: clamp(16px, 2vw, 30px); }
+    .sv-node { border: 1px solid var(--panel-line); border-radius: 12px; background: var(--panel); padding: clamp(12px, 1.3vw, 20px) clamp(16px, 1.8vw, 26px); }
+    .sv-cap { display: flex; align-items: baseline; gap: 11px; margin-bottom: clamp(7px, 0.8vw, 11px); flex-wrap: wrap; }
+    .sv-lbl { font-family: var(--mono); font-size: clamp(10px, 0.82vw, 12px); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+    .sv-sub { font-size: clamp(11px, 0.95vw, 15px); color: var(--muted); }
+    .sv-sub .mono { font-family: var(--mono); font-size: 0.9em; color: var(--muted); }
+    .sv-node pre { margin: 0; font-family: var(--mono); font-size: clamp(10px, 0.92vw, 14px); line-height: 1.55; color: var(--ink); white-space: pre; overflow: auto; }
+    .sv-node pre .c { color: var(--faint); }
+    .sv-node pre .k { color: var(--accent); }
+    .sv-node pre .s { color: #9ec5ff; }
+    .sv-node pre .t { color: #7fd6b0; }
+    .sv-contract { border-color: rgba(91,157,255,0.5); background: rgba(91,157,255,0.08); box-shadow: 0 0 0 1px rgba(91,157,255,0.10); }
+    .sv-arrow { justify-self: center; display: flex; align-items: center; gap: 10px; color: var(--faint); }
+    .sv-arrow .ar { font-family: var(--mono); font-size: clamp(13px, 1.1vw, 16px); color: var(--accent-dim); }
+    .sv-arrow .lab { font-size: clamp(10px, 0.85vw, 13px); color: var(--muted); font-family: var(--mono); letter-spacing: 0.02em; }
+    .sv-arrow .lab .mono { color: var(--accent); }
+
+    .slide.intro h1 { font-size: clamp(40px, 5.8vw, 108px); }
+    .slide.intro .lines.abstract { margin-top: clamp(18px, 2vw, 30px); max-width: 72ch; justify-items: center; }
+    .slide.intro .lines.abstract p.line { font-size: clamp(14px, 1.1vw, 18px); line-height: 1.48; }
+
+    .meta { margin-top: clamp(28px, 3vw, 44px); }
+    .meta .name { font-size: clamp(18px, 1.6vw, 26px); color: var(--bright); font-weight: 700; }
+    .links { margin-top: clamp(22px, 2.4vw, 36px); font-size: clamp(15px, 1.3vw, 22px); color: var(--muted); }
+    .links a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-dim); padding-bottom: 1px; margin: 0 4px; }
+    .links a:hover { color: var(--bright); border-color: var(--bright); }
+
+    /* horizontal dot nav */
+    .dots { position: fixed; left: 0; right: 0; bottom: clamp(22px, 2.4vw, 36px); display: flex; justify-content: center; gap: 10px; z-index: 30; flex-wrap: wrap; padding: 0 90px; }
+    .dots button { width: 8px; height: 8px; border-radius: 50%; border: 0; padding: 0; background: var(--faint); cursor: pointer; transition: background 160ms, transform 160ms, width 200ms; }
+    .dots button:hover { background: var(--muted); }
+    .dots button.on { background: var(--accent); width: 24px; border-radius: 6px; }
+    .dots button.sec { background: var(--accent-dim); }
+
+    .arrows { position: fixed; right: clamp(22px, 2.6vw, 44px); bottom: clamp(18px, 2vw, 30px); display: flex; gap: 10px; z-index: 30; }
+    .arrows button { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: rgba(91,157,255,0.06); color: var(--muted); font-size: 18px; cursor: pointer; }
+    .arrows button:hover { color: var(--bright); border-color: var(--accent-dim); }
+
+    .brand { position: fixed; left: clamp(24px, 3vw, 48px); bottom: clamp(22px, 2.4vw, 34px); font-size: clamp(11px, 0.85vw, 13px); color: var(--faint); letter-spacing: 0.08em; z-index: 20; }
+
+    /* measured side-by-side comparison (flat vs RLM) */
+    .cmp { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(20px, 2.6vw, 48px); width: 100%; margin-top: clamp(26px, 3vw, 46px); }
+    .cmp .metric .mh { display: flex; align-items: baseline; gap: 8px; margin-bottom: clamp(12px, 1.3vw, 18px); }
+    .cmp .metric .mh .ml { font-size: clamp(13px, 1.12vw, 19px); color: var(--bright); font-weight: 700; }
+    .cmp .metric .mh .mu { font-size: clamp(10px, 0.8vw, 12px); color: var(--faint); font-family: var(--mono); }
+    .cmp .row { margin-bottom: clamp(12px, 1.3vw, 18px); }
+    .cmp .row .rl { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    .cmp .row .rl .who { font-size: clamp(11px, 0.92vw, 14px); font-family: var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+    .cmp .row .rl .val { font-size: clamp(15px, 1.45vw, 24px); font-weight: 800; letter-spacing: -0.02em; }
+    .cmp .track-bar { height: clamp(8px, 0.85vw, 11px); border-radius: 6px; background: rgba(120,160,220,0.12); overflow: hidden; }
+    .cmp .track-bar .fill { height: 100%; border-radius: 6px; transition: width 600ms cubic-bezier(0.4,0,0.2,1); }
+    .cmp .flat .who { color: var(--warn); }
+    .cmp .flat .val { color: var(--warn); }
+    .cmp .flat .fill { background: var(--warn); }
+    .cmp .rlm .who { color: var(--accent); }
+    .cmp .rlm .val { color: var(--accent); }
+    .cmp .rlm .fill { background: var(--accent); }
+    .cmp .agent .who { color: var(--agent); }
+    .cmp .agent .val { color: var(--agent); }
+    .cmp .agent .fill { background: var(--agent); }
+    .cmp .metric .win { font-size: clamp(11px, 0.92vw, 15px); color: var(--muted); line-height: 1.35; margin-top: clamp(4px, 0.5vw, 8px); }
+    .cmp .metric .win b { color: var(--bright); font-weight: 700; }
+    .cmp-foot { margin-top: clamp(22px, 2.6vw, 40px); color: var(--faint); font-size: clamp(12px, 0.95vw, 16px); line-height: 1.4; font-family: var(--mono); }
+    .cmp-foot b { color: var(--muted); font-weight: 700; }
+
+    /* benchmark tables */
+    .btab-wrap { display: grid; gap: clamp(22px, 2.4vw, 38px); width: 100%; }
+    .btab-lbl { font-family: var(--mono); font-size: clamp(11px, 0.92vw, 15px); color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: clamp(8px, 1vw, 14px); }
+    .btab { width: 100%; border-collapse: collapse; font-size: clamp(14px, 1.32vw, 23px); }
+    .btab th { text-align: left; color: var(--muted); font-weight: 600; padding: 0.34em 0.7em 0.5em 0; border-bottom: 1px solid var(--panel-line); font-size: 0.8em; letter-spacing: 0.02em; }
+    .btab th.v, .btab td.v { text-align: right; padding-right: 0; }
+    .btab td { padding: 0.44em 0.7em 0.44em 0; color: var(--ink); border-bottom: 1px solid var(--line); line-height: 1.25; }
+    .btab tr:last-child td { border-bottom: 0; }
+    .btab td.task { color: var(--muted); }
+    .btab td.task b { color: var(--bright); font-weight: 700; }
+    .btab td.task small { display: block; color: var(--faint); font-size: 0.76em; margin-top: 1px; }
+    .btab td.v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 700; }
+    .btab .van { color: var(--warn); }
+    .btab .rlm { color: var(--accent); }
+
+    /* security-audit breakdown table */
+    .audit { width: 100%; border-collapse: collapse; font-size: clamp(13px, 1.15vw, 20px); margin-top: clamp(20px, 2.4vw, 40px); }
+    .audit th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.78em; letter-spacing: 0.05em; text-transform: uppercase; padding: 0 1.1em 0.6em 0; border-bottom: 1px solid var(--panel-line); }
+    .audit td { padding: 0.5em 1.1em 0.5em 0; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.3; }
+    .audit tr:last-child td { border-bottom: 0; }
+    .audit td.num { color: var(--faint); font-family: var(--mono); white-space: nowrap; }
+    .audit td.topic { color: var(--bright); font-weight: 700; white-space: nowrap; }
+    .audit td.notes { color: var(--muted); }
+    .audit .pill { display: inline-block; padding: 0.14em 0.8em; border-radius: 999px; font-size: 0.82em; font-weight: 700; font-family: var(--mono); letter-spacing: 0.03em; white-space: nowrap; }
+    .audit .caught { color: #7fe0b0; background: rgba(127,224,176,0.15); }
+    .audit .partial { color: #f0c674; background: rgba(240,198,116,0.15); }
+    .audit .missed { color: var(--warn); background: rgba(228,104,93,0.15); }
+    .audit-sum { margin-top: clamp(18px, 2vw, 30px); color: var(--muted); font-size: clamp(13px, 1.1vw, 19px); }
+    .audit-sum b.caught { color: #7fe0b0; } .audit-sum b.partial { color: #f0c674; } .audit-sum b.missed { color: var(--warn); }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .deck { height: auto; overflow: visible; }
+      .track { display: block; transform: none !important; }
+      .slide { width: 100%; min-height: 100vh; display: none; padding: 64px 26px 96px; }
+      .slide.active { display: flex; }
+      h2, h2.long, .lines { max-width: none; }
+      .two { grid-template-columns: 1fr; }
+      .two.with-img .img-col img { max-height: none; }
+      .dots { display: none; }
+    }
+    @media print {
+      body { overflow: visible; }
+      .deck { height: auto; overflow: visible; }
+      .track { display: block; transform: none !important; }
+      .slide { display: flex !important; height: 100vh; page-break-after: always; }
+      .dots, .arrows, .brand { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <div class="track" id="track">
+
+      <!-- 1 — TITLE -->
+      <section class="slide center intro active">
+        <div class="eyebrow">11:10–11:30 · Track 8 · Context Engineering</div>
+        <h1>It's Tokens All The Way Down</h1>
+        <h3 class="subtitle">How RLMs are Different</h3>
+        <div class="meta"><span class="name">Kevin Madura</span></div>
+        <div class="links"><a href="https://kmad.ai">kmad.ai</a> &nbsp;·&nbsp; <a href="https://x.com/kmad">@kmad</a></div>
+      </section>
+
+      <!-- ============ SECTION 1 ============ -->
+
+      <!-- 2 — DIVIDER -->
+      <section class="slide center divider" data-sec>
+        <div class="sec-num">01</div>
+        <h2 class="long" style="text-align:center; max-width:18ch">
+          What an RLM is,<br>and why it's different.
+        </h2>
+      </section>
+
+      <!-- 3 — DEFINITION -->
+      <section class="slide">
+        <div class="two with-img">
+          <div class="col">
+            <div class="eyebrow">01 · Foundations</div>
+            <h2>A Recursive Language Model:</h2>
+            <div class="lines">
+              <p class="line"><b>- treats context as an object it can manipulate in a symbolic environment</b></p>
+              <p class="line"><b>- delegates to sub-LMs</b> as functions inside that REPL</p>
+              <p class="line"><b>- is bitter lesson pilled</b>; lets the model decide how to work</p>
+              
+            </div>
+            <div style="font-size:0.82em; margin-top:1.5em; color:var(--faint);">
+              <sup>1</sup><a href="https://alexzhang13.github.io/blog/2025/rlm/" target="_blank" style="color:var(--faint);">Alex Zhang; Omar Khattab</a>
+            </div>
+          </div>
+          <div class="col img-col">
+            <img src="img/rlm-teaser.png" alt="Recursive Language Model architecture diagram" loading="lazy">
+          </div>
+        </div>
+      </section>
+
+      <!-- 3a — OMAR: RECURSIVE DSPY (omar.png) -->
+      <section class="slide center">
+        <div class="eyebrow">01 · Foundations · origin</div>
+        <div class="slide-img-frame med">
+          <img src="img/omar.png" alt="Tweet from Omar Khattab (@lateinteraction): a general-purpose massively_summarize DSPy program that takes arbitrarily long text, builds a table of contents, assigns chunks to sections, and recursively summarizes each section in parallel using dspy.ChainOfThought and parallelize.">
+        </div>
+        <p class="img-cap"><b>Omar Khattab</b>, May 2025 — a general-purpose summarizer for <b>arbitrarily long text</b> as a recursive DSPy program. The RLM idea, in ~40 lines.</p>
+      </section>
+
+      <!-- 3b — BROWSECOMP-PLUS RESULTS (rlm.png) -->
+      <section class="slide center">
+        <div class="eyebrow">01 · Foundations · the result</div>
+        <div class="slide-img-frame light wide">
+          <img src="img/rlm.png" alt="Two charts on BrowseComp-Plus vs number of context docs. Left: correct-answer rate — RLM(GPT-5) holds ~100% out to 1000 docs while GPT-5, truncation, BM25 retrieval and ReAct collapse. Right: average API cost per query — RLM stays moderate while ReAct+BM25 cost climbs steeply to ~$2.">
+        </div>
+        <p class="img-cap">On <b>BrowseComp-Plus</b>, <span class="mono">RLM(GPT-5)</span> stays near <b>100%</b> out to <b>1000 docs</b> while flat, truncation, RAG, and ReAct all decay — at a fraction of ReAct's cost.</p>
+      </section>
+
+
+      <!-- 4 — THE DIFFERENTIATOR -->
+      <section class="slide">
+        <div class="two with-img">
+          <div class="col">
+            <div class="eyebrow">01 · Foundations</div>
+            <h2 class="ex" style="margin-bottom: 0.55em;">You define the task,<br>the model picks the path.</h2>
+            <div class="lines">
+              <p class="line">With agents and tool-calling, you are subject to limits of the context window.</p>
+              <p class="line">With an RLM the model <i>decides how to navigate the context</i> — peek, grep, chunk, recurse — inside the REPL.</p>
+              <p class="line">The <b>deterministic shell</b> is yours. The open-ended, judgment-heavy middle is the model's job.</p>
+            </div>
+          </div>
+          <div class="col img-col">
+            <img class="img-dark"
+                 src="img/deterministic-shell-dark-hires.png"
+                 alt="Deterministic shell: typed inputs and outputs surround a probabilistic core where the model extracts, judges, and drafts"
+                 loading="lazy"
+                 style="max-width: 300%; width: 940px; height: auto; display: block; margin: 0 auto;">
+          </div>
+  
+        </div>
+      </section>
+      <!-- 3c — DUMB ZONE (Dex Horthy) -->
+      <section class="slide center full-img">
+        <img src="img/dumbzone.png" alt="Dex Horthy's context-window diagram: System Instructions, CLAUDE.md, tools, the user message, Read() and context.md sit in the top 'smart zone' at 40% context used; everything below the line is 'the dumb zone'.">
+      </section>
+
+      <!-- 5 — NOT JUST X (ANIMATED: context window vs. variable) -->
+      <section class="slide" data-animate="flow">
+        <div class="eyebrow">01 · Foundations</div>
+        <h2 class="ex" style="margin-bottom: 0.55em;">Meaningfully different from tool-calling;<br>context is <i>part of the environment.</i></h2>
+        <div class="two" style="align-items:start; grid-template-columns: 0.92fr 1.08fr;">
+          <div class="col">
+            <table class="flow-table" id="flow-table">
+              <thead>
+                <tr><th>Approach</th><th>How it treats context</th></tr>
+              </thead>
+              <tbody>
+                <tr data-row="0"><td><b>RAG</b></td><td>Retrieves top‑k passages for a single query.</td></tr>
+                <tr data-row="1"><td><b>Agents</b></td><td>Decompose task — pollute root context with every sub-result.</td></tr>
+                <tr data-row="2"><td><b>CodeAct</b></td><td>Runs code as a tool, not as the environment itself.</td></tr>
+                <tr data-row="3" class="rlm-row"><td><b>RLM</b></td><td>The code <i>is</i> the environment; recursion is the primitive.</td></tr>
+              </tbody>
+            </table>
+            <p class="flow-insight">The first three <b>stuff the context window</b>. An RLM keeps the context as a <b>variable</b> in the environment — the root LM never "sees" the bulk; it orchestrates via code.</p>
+          </div>
+          <div class="col">
+            <div class="cw">
+              <div class="cw-frame-label" id="flow-label">
+                <span class="cw-badge" id="flow-badge"></span>
+                <span class="cw-sub" id="flow-sub"></span>
+              </div>
+
+              <div class="cw-store" id="flow-store">
+                <div class="cw-store-head" id="flow-store-head"></div>
+                <div class="cw-store-body" id="flow-store-body"></div>
+              </div>
+
+              <div class="cw-arrow" id="flow-arrow"></div>
+
+              <div class="cw-window" id="flow-window">
+                <div class="cw-win-head">Context window · what the model actually sees</div>
+                <div class="cw-win-body" id="flow-win-body"></div>
+                <div class="cw-meter"><div class="cw-meter-fill" id="flow-fill"></div></div>
+                <div class="cw-meter-label" id="flow-meter"></div>
+              </div>
+
+              <div class="cw-take" id="flow-take"></div>
+            </div>
+            <div class="step-hint" id="flow-hint"><kbd>→</kbd> or <kbd>Space</kbd> to step through</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 — WHERE RESULTS LIVE (workflows table) -->
+      <section class="slide center">
+        <div class="eyebrow">01 · Foundations · where results live</div>
+        <div class="slide-img-frame">
+          <img src="img/workflows.png" alt="Comparison of Claude orchestration primitives — Subagents, Skills, Agent teams, Workflows — across what it is, who decides what runs next, where intermediate results live, what's repeatable, scale, and interruption. The 'where intermediate results live' row and the Workflows 'script variables' cell are circled.">
+        </div>
+        <p class="img-cap">Only <b>workflows</b> keep intermediate results in <b>script variables</b> — state that outlives any one context window. Sounds familiar!</p>
+      </section>
+
+      <!-- ============ SECTION 2 ============ -->
+
+      <!-- 7 — DIVIDER -->
+      <section class="slide center divider" data-sec>
+        <div class="sec-num">02</div>
+        <h2 class="long" style="text-align:center; max-width:18ch">When to reach<br>for it.</h2>
+      </section>
+
+
+      <!-- 10 — RULE OF THUMB -->
+      <section class="slide">
+        <div class="eyebrow">02 · Fit</div>
+        <h2>Rule of thumb.</h2>
+        <div class="lines">
+          <p class="line">Use an RLM when the <b>context won't fit</b> or the <b>work is compositional</b> — and you can spend latency to buy reliability.</p>
+          <p class="line">Otherwise a single call, RAG, or a plain code tool is cheaper and just as good.</p>
+        </div>
+      </section>
+
+
+      <section class="slide fit-slide">
+        <div class="eyebrow" style="text-align:center">02 · Fit</div>
+        <h2 class="fit-head">When to use</h2>
+        <div class="fit">
+          <div class="col use">
+            <div class="col-head">Use it</div>
+            <ul>
+              <li>Very large/ dense inputs <i>or</i> outputs</li>
+              <li>Tasks amenable to decomposition</li>
+              <li>Long-horizon sessions<small>that would rot a flat context</small></li>
+            </ul>
+          </div>
+          <div class="col skip">
+            <div class="col-head">Skip it</div>
+            <ul>
+              <li>Fits in context</li>
+              <li>Low-latency requirements</li>
+              <li>~Weak base coder</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+       <!-- 11b — LONGCOT BENCHMARK (raw.works) -->
+       <section class="slide">
+        <div class="eyebrow">02 · benchmark · LongCoT</div>
+        <h2 class="ex">LongCoT Performance</h2>
+        <div class="two" style="align-items:start">
+          <div class="col">
+            <div class="lines tight">
+              <p class="line">@raw_works stress-tested <b>long-horizon reasoning</b> using <span class="mono">claude-sonnet-4-5</span> <b>vanilla vs <span class="mono">dspy.RLM</span></b></p>
+              <p class="line">Across <b>500 questions</b> (logic, CS, chemistry, chess, and math): <br /> RLM lifted accuracy from <b>2.6% → 45.4%</b> </p>
+              <p class="line">RLM wins where dependencies <b>compile to code</b> — puzzles, Hanoi, chess. It stalls on graph-shaped problems (max-flow, Hindley–Milner) and graphs.</p>
+            </div>
+            <p class="note">Source: <span class="mono">raw.works/longcot-a-benchmark-worthy-of-a-rlms-attention</span></p>
+          </div>
+          <div class="col">
+            <div class="btab-wrap">
+              <div>
+                <div class="btab-lbl">500 questions · same model</div>
+                <table class="btab">
+                  <thead><tr><th>Metric</th><th class="v van">Vanilla</th><th class="v rlm">RLM</th></tr></thead>
+                  <tbody>
+                    <tr><td class="task"><b>Correct</b></td><td class="v van">13/500</td><td class="v rlm">227/500</td></tr>
+                    <tr><td class="task"><b>Accuracy</b></td><td class="v van">2.6%</td><td class="v rlm">45.4%</td></tr>
+                    <tr><td class="task"><b>Captured cost</b></td><td class="v van">$31</td><td class="v rlm">$621</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <div class="btab-lbl">Per-task — solved</div>
+                <table class="btab">
+                  <thead><tr><th>Task</th><th class="v van">Vanilla</th><th class="v rlm">RLM</th></tr></thead>
+                  <tbody>
+                    <tr><td class="task"><b>Logic puzzles</b><small>Hanoi · Sudoku · Dungeon · +3</small></td><td class="v van">0/15</td><td class="v rlm">15/15</td></tr>
+                    <tr><td class="task"><b>Chess</b></td><td class="v van">0/100</td><td class="v rlm">85/100</td></tr>
+                    <tr><td class="task"><b>BlocksWorld · Sokoban</b></td><td class="v van">0/20</td><td class="v rlm">16/20</td></tr>
+                    <tr><td class="task"><b>Chemistry</b></td><td class="v van">13/100</td><td class="v rlm">31/100</td></tr>
+                    <tr><td class="task"><b>Math</b></td><td class="v van">0/95</td><td class="v rlm">6/95</td></tr>
+                    <tr><td class="task"><b>MaxFlow · Hindley–Milner</b><small>graph-shaped — both fail</small></td><td class="v van">0/75</td><td class="v rlm">0/75</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- 16c — MEASURED COMPARISON A: long-context aggregation -->
+      <section class="slide">
+        <div class="eyebrow">03 · measured · flat vs RLM</div>
+        <h2 class="ex">Sum 12 numbers<br>buried in 30k tokens.</h2>
+        <p class="note" style="max-width:64ch">Same root model (<b>gpt-5.4-mini</b>), same question. <b>flat</b> dumps the whole blob into one prompt; <b>RLM</b> loads it as a sandbox variable and counts in code.</p>
+        <div class="cmp">
+          <div class="metric">
+            <div class="mh"><span class="ml">Complexity</span><span class="mu">peak prompt tok ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">19,556</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">1,253</span></div><div class="track-bar"><div class="fill" style="width:6.4%"></div></div></div>
+            <div class="win"><b>15.6× smaller</b> blob per call</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">Performance</span><span class="mu">accuracy ↑</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">0%</span></div><div class="track-bar"><div class="fill" style="width:2%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">100%</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="win"><b>right vs wrong</b> — flat miscounts</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">Time</span><span class="mu">s / question ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">4.2s</span></div><div class="track-bar"><div class="fill" style="width:71%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">5.9s</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="win">flat <b>1.4× faster</b> — and wrong</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">Token usage</span><span class="mu">total tok ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">19,572</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">3,869</span></div><div class="track-bar"><div class="fill" style="width:19.8%"></div></div></div>
+            <div class="win"><b>5.1× fewer</b> tokens billed</div>
+          </div>
+        </div>
+        <p class="cmp-foot">flat <b>0/1</b> correct · RLM <b>1/1</b> — RLM trades <b>1.4×</b> wall-clock for a <b>15×</b> smaller prompt, <b>5×</b> fewer tokens, and the right answer.</p>
+      </section>
+
+      <!-- 16d — MEASURED COMPARISON B: structured workbook -->
+      <section class="slide">
+        <div class="eyebrow">03 · measured · flat vs RLM</div>
+        <h2 class="ex">Five questions<br>over a 5k-row table.</h2>
+        <p class="note" style="max-width:64ch">Joins, group-bys, churn math. <b>flat</b> flattens <span class="mono">df.to_string()</span> into the prompt (truncated); <b>RLM</b> reads only a preview, then runs real pandas in the sandbox.</p>
+        <div class="cmp">
+          <div class="metric">
+            <div class="mh"><span class="ml">Complexity</span><span class="mu">peak prompt tok ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">3,821</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">1,191</span></div><div class="track-bar"><div class="fill" style="width:31.2%"></div></div></div>
+            <div class="win"><b>3.2× smaller</b> — frame stays out</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">Performance</span><span class="mu">accuracy ↑</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">0%</span></div><div class="track-bar"><div class="fill" style="width:2%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">75%</span></div><div class="track-bar"><div class="fill" style="width:75%"></div></div></div>
+            <div class="win"><b>3/4 vs 0/4</b> — truncation loses rows</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">Time</span><span class="mu">s / question ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">0.9s</span></div><div class="track-bar"><div class="fill" style="width:14%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">6.6s</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="win">flat <b>7× faster</b> — the cost of the loop</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">Token usage</span><span class="mu">total tok ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">3,840</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">2,488</span></div><div class="track-bar"><div class="fill" style="width:64.8%"></div></div></div>
+            <div class="win"><b>1.5× fewer</b> even with the sandbox loop</div>
+          </div>
+        </div>
+        <p class="cmp-foot">The honest trade: RLM is <b>slower per question</b>, but the only arm that actually computes over the data — flat truncates and guesses.</p>
+      </section>
+
+      <!-- 16d2 — MEASURED COMPARISON: coding agent (Claude Code) -->
+      <section class="slide">
+        <div class="eyebrow">03 · measured · the coding-agent question</div>
+        <h2 class="ex">A coding agent gets it right too.<br>For 40–115× the overhead.</h2>
+        <p class="note" style="max-width:70ch">Same two tasks, same grading. <b>agent</b> = Claude Code — its own frontier model, its own shell, not <span class="mono">dspy.RLM</span> at all. <b>Not iso-model</b> with flat/rlm: this answers "what does buying a general-purpose agent cost instead of building the scaffold," not "which scaffold wins."</p>
+        <div class="cmp">
+          <div class="metric">
+            <div class="mh"><span class="ml">A · cost / query</span><span class="mu">long-context agg ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">$0.0147</span></div><div class="track-bar"><div class="fill" style="width:7.7%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">$0.0041</span></div><div class="track-bar"><div class="fill" style="width:2.2%"></div></div></div>
+            <div class="row agent"><div class="rl"><span class="who">agent</span><span class="val">$0.190</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="win">agent <b>46× rlm's</b> cost — tied on accuracy</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">A · total tokens</span><span class="mu">long-context agg ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">19,572</span></div><div class="track-bar"><div class="fill" style="width:13.4%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">3,933</span></div><div class="track-bar"><div class="fill" style="width:2.7%"></div></div></div>
+            <div class="row agent"><div class="rl"><span class="who">agent</span><span class="val">146,263</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="win">agent <b>37× rlm's</b> tokens per question</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">B · cost / query</span><span class="mu">workbook ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">$0.0013</span></div><div class="track-bar"><div class="fill" style="width:0.7%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">$0.0035</span></div><div class="track-bar"><div class="fill" style="width:1.9%"></div></div></div>
+            <div class="row agent"><div class="rl"><span class="who">agent</span><span class="val">$0.189</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="win">agent <b>54× rlm's</b> cost — tied on accuracy</div>
+          </div>
+          <div class="metric">
+            <div class="mh"><span class="ml">B · total tokens</span><span class="mu">workbook ↓</span></div>
+            <div class="row flat"><div class="rl"><span class="who">flat</span><span class="val">3,837</span></div><div class="track-bar"><div class="fill" style="width:2.6%"></div></div></div>
+            <div class="row rlm"><div class="rl"><span class="who">rlm</span><span class="val">3,405</span></div><div class="track-bar"><div class="fill" style="width:2.3%"></div></div></div>
+            <div class="row agent"><div class="rl"><span class="who">agent</span><span class="val">144,967</span></div><div class="track-bar"><div class="fill" style="width:100%"></div></div></div>
+            <div class="win">agent <b>43× rlm's</b> tokens per question</div>
+          </div>
+        </div>
+        <p class="cmp-foot">Accuracy tied: agent <b>100% / 75%</b> vs rlm <b>100% / 75%</b> on tasks A/B — a real shell beats flat regardless of scaffold. The gap is pure overhead: Claude Code's own system prompt, tool schema, and full-file reads dominate every call. <b>Building the scaffold is ~50× cheaper than buying general-purpose agent overhead, per query.</b></p>
+      </section>
+
+      <!-- ============ SECTION 3 ============ -->
+
+      <!-- 11 — DIVIDER -->
+      <section class="slide center divider" data-sec>
+        <div class="sec-num">03</div>
+        <h2 class="long" style="text-align:center; max-width:18ch">In practice.</h2>
+      </section>
+
+      <!-- 12 — THREE IMPLEMENTATIONS -->
+      <section class="slide">
+        <div class="eyebrow">03 · In practice</div>
+        <h2 class="ex">RLMs in the real world</h2>
+        <div class="two with-img" style="align-items:center">
+          <div class="col">
+            <div class="lines">
+              <p class="line"><b>dspy.RLM</b> — the core module in DSPy. Typed signatures, pluggable sandbox.</p>
+              <p class="line"><b>ax</b> <span class="mono">(github.com/ax-llm/ax)</span> — open source reference agent with DSPy, full workflow and orchestration.</p>
+              <p class="line"><b>predict-rlm</b> <span class="mono">(Trampoline AI)</span> — production runtime on DSPy. Multimodal, skills, file I/O, full traces.</p>
+              <p class="line"><b>fast-rlm</b> <span class="mono">(avbiswas)</span> — minimal; the whole thing in an afternoon.</p>
+            </div>
+          </div>
+          <div class="col img-col">
+            <img src="img/hogan_rlm.png" style="background:#0a0a0a" alt="Tweet from Sam Hogan (@samhogan): to try GLM 5.2 in production, install Inference Gateway, which uses an RLM to sort through live traffic and auto-generate evals over ~24 hours, mirrors traffic to run them, and notifies you on Slack when it is safe to switch — saving ~90% on the token bill.">
+          </div>
+        </div>
+      </section>
+
+     
+
+      <!-- 13 — COHORT SIGNATURE SETUP -->
+      <section class="slide">
+        <div class="eyebrow">03 · dspy.RLM</div>
+        <h2 class="ex">Exploring a dataframe</h2>
+        <div class="two code-wide" style="align-items:start">
+          <div class="col">
+            <div class="lines tight">
+              <p class="line">The <b>whole integration</b> is a DSPy signature — analyst brief in the docstring, typed inputs, typed outputs.</p>
+              <p class="line">Pass the DataFrames in, call <span class="mono">dspy.RLM()</span>. No agent scaffold, no custom tools, no hand-built orchestration.</p>
+              <p class="line">The model interacts with the data through REPL code. <b>That's the entire program you write.</b></p>
+            </div>
+          </div>
+          <div class="col">
+            <div class="scroll-x">
+              <pre class="code sig" style="white-space:pre; overflow-x:auto;"><span class="k">class</span> CohortRetentionAnalysis(dspy.Signature):
+    <span class="s">"""You are a data analyst investigating why user retention is dropping.
+
+    You have access to three DataFrames:
+    - <span class="var">users</span>: user profiles with signup dates and acquisition channels
+    - <span class="var">events</span>: feature usage events with timestamps
+    - <span class="var">subscriptions</span>: subscription status, plan, MRR, and cancellation reasons
+
+    Investigate the data step by step. Compute retention by cohort, segment by
+    acquisition channel, compare feature usage between retained and churned users,
+    and identify the root cause of churn.
+    """</span>
+
+    <span class="id">users</span>: <span class="type">DataFrame</span> = dspy.InputField(desc=<span class="s">"User profiles with signup_date, acquisition_channel, country"</span>)
+    <span class="id">events</span>: <span class="type">DataFrame</span> = dspy.InputField(desc=<span class="s">"Feature usage events with user_id, event_type, timestamp"</span>)
+    <span class="id">subscriptions</span>: <span class="type">DataFrame</span> = dspy.InputField(desc=<span class="s">"Subscription records with status, plan, mrr, cancellation_reason"</span>)
+
+    <span class="id">overall_churn_rate</span>: <span class="type">float</span> = dspy.OutputField(desc=<span class="s">"Overall churn rate as a decimal (e.g. 0.25 for 25%)"</span>)
+    <span class="id">worst_channel</span>: <span class="type">str</span> = dspy.OutputField(desc=<span class="s">"Acquisition channel with highest churn rate"</span>)
+    <span class="id">key_finding</span>: <span class="type">str</span> = dspy.OutputField(desc=<span class="s">"The main insight about what differentiates churned users"</span>)
+    <span class="id">recommendations</span>: <span class="type">str</span> = dspy.OutputField(desc=<span class="s">"2-3 actionable recommendations based on the analysis"</span>)
+
+dspy.<span class="k">RLM</span>(<span class="type">CohortRetentionAnalysis</span>)(<span class="id">users</span>=..., <span class="id">events</span>=..., <span class="id">subscriptions</span>=...)
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 14 — DSPY.RLM COHORT (setup + step flow) -->
+      <section class="slide" data-animate="cohort">
+        <div class="eyebrow">03 · dspy.RLM</div>
+        <h2 class="ex">dspy.RLM — exploring a dataframe</h2>
+        <div class="two cohort-layout">
+          <div class="col">
+            <p class="note" style="margin-top:0">Three DataFrames, <b>16MB / 250k events</b>. Only previews hit the prompt — the model writes and runs the analysis in the sandbox.</p>
+            <div class="steps anim" id="cohort-steps">
+              <div class="step" data-step="0"><span class="dot"></span><div><b>Explore</b><span>shapes, dtypes, channel &amp; plan counts</span></div></div>
+              <div class="step" data-step="1"><span class="dot"></span><div><b>Define churn</b><span>cancelled / total; cohort by signup month</span></div></div>
+              <div class="step" data-step="2"><span class="dot"></span><div><b>Segment by channel</b><span>paid_campaign_x worst, every cohort</span></div></div>
+              <div class="step" data-step="3"><span class="dot"></span><div><b>Dig into behavior</b><span>retained vs churned feature usage</span></div></div>
+              <div class="step" data-step="4"><span class="dot"></span><div><b>Find the signal</b><span>advanced_reports adoption</span></div></div>
+              <div class="step" data-step="5"><span class="dot"></span><div><b>Verify &amp; submit</b><span>sanity checks, then <span style="font-family:var(--mono)">SUBMIT(...)</span></span></div></div>
+              <div class="cap" id="cohort-cap" hidden><b>7 REPL turns</b> — two spent fixing its own <span style="font-family:var(--mono)">KeyError</span> on <span style="font-family:var(--mono)">signup_month</span>.</div>
+            </div>
+            <div class="step-hint" id="cohort-hint"><kbd>→</kbd> or <kbd>Space</kbd> to step through</div>
+          </div>
+          <div class="col">
+            <div class="thought" id="cohort-thought">
+              <div class="thought-h">
+                <span class="lbl">Reasoning</span>
+                <span class="turn" id="cohort-turn">turn 1 / 7</span>
+              </div>
+              <p id="cohort-reason"></p>
+              <pre id="cohort-code"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 15b — RLM TRAJECTORY (reasoning + code, cmpnd.png) -->
+      <section class="slide center">
+        <div class="eyebrow">03 · dspy.RLM · trajectory</div>
+        <div class="slide-img-frame light">
+          <img src="img/cmpnd.png" alt="A single RLM trajectory step: a 'reasoning' block where the model plans to compare feature usage between retained and churned users within paid_campaign_x, followed by a 'code' block with the pandas it wrote — user-level event aggregates via groupby and a feature-count pivot table.">
+        </div>
+        <p class="img-cap">One step of the run, verbatim — the model's <b>reasoning</b>, then the <b>pandas it wrote</b> to build user-level aggregates and feature pivots. No scaffold; it planned this itself.</p>
+      </section>
+
+      <!-- 16 — PREDICT-RLM: TWO PDFS IN (result images) -->
+      <section class="slide">
+        <div class="eyebrow">03 · predict-rlm · live run</div>
+        <h2 class="ex">Real world use case:<br>Invoice to inventory</h2>
+        <div class="io-flow">
+          <div class="io-col">
+            <div class="io-lbl">2 invoice PDFs in</div>
+            <div class="io-pdfs">
+              <img src="img/invoice-pdf-acme.png" alt="Acme Corporation invoice PDF, INV-2025-0042, with line items for cloud hosting, storage, support, API overage and SSL renewal.">
+              <img src="img/invoice-pdf-globaltech.png" alt="GlobalTech Solutions invoice PDF, GT-10587, with line items for software license, consulting, migration, training, support, integration and a discount.">
+            </div>
+          </div>
+          <div class="io-arrow">&rarr;</div>
+          <div class="io-col">
+            <div class="io-lbl">one .xlsx out</div>
+            <img class="io-sheet" src="img/invoice-output.png" alt="Generated invoice_extraction.xlsx: line items extracted from the invoice PDFs with Description, Quantity, Unit Price and Amount columns, including a Discount (10%) row.">
+          </div>
+        </div>
+        <p class="img-cap">Two PDFs → one typed <b>.xlsx</b> — line items lifted straight off the page, one sheet per vendor plus a reconciled Summary. <span class="mono">predict-rlm/examples/invoice_processing</span></p>
+      </section>
+
+      <!-- 16a — PREDICT-RLM: THE RUN (code + trajectory) -->
+      <section class="slide">
+        <div class="eyebrow">03 · predict-rlm · the run</div>
+        <h2 class="ex">Focus on abstractions instead of context engineerning.</h2>
+        <div class="two" style="align-items:start">
+          <div class="col">
+            <pre class="code"><span class="k">from</span> predict_rlm <span class="k">import</span> PredictRLM, File
+<span class="k">from</span> predict_rlm.skills <span class="k">import</span> pdf, spreadsheet
+
+rlm = <span class="k">PredictRLM</span>(ProcessInvoices,
+                 skills=[pdf, spreadsheet],
+                 sub_lm=<span class="k">"openai/gpt-5.1"</span>)
+<span class="k">await</span> rlm.acall(invoices=[File(<span class="s">"acme.pdf"</span>),
+                              File(<span class="s">"globaltech.pdf"</span>)])</pre>
+            <p class="note">One DSPy signature &rarr; typed <span class="mono">InvoiceExtractionResult</span> + an <span class="mono">.xlsx</span> workbook. <b>No agent scaffold.</b> Orchestrator <span class="mono">gpt-5.4</span> drives the REPL; <span class="mono">gpt-5.1</span> reads the page images.</p>
+          </div>
+          <div class="col">
+            <div class="turns">
+              <div class="turn">
+                <div class="turn-h"><span class="n">01</span> Survey <span class="r">8.0s</span></div>
+                <pre class="code mini">pymupdf.open(p)  <span class="c"># 2 files &middot; 2 pages</span>
+<span class="c"># vendors: Acme Corp, GlobalTech</span></pre>
+              </div>
+              <div class="turn">
+                <div class="turn-h"><span class="n">02</span> Render + extract <span class="r">15.8s &middot; 2 sub-calls</span></div>
+                <pre class="code mini"><span class="k">await</span> asyncio.gather(*[
+  predict(<span class="s">"page: dspy.Image -&gt; invoice"</span>, page=img)
+  <span class="k">for</span> img <span class="k">in</span> pages])  <span class="c"># parallel, gpt-5.1</span></pre>
+              </div>
+              <div class="turn">
+                <div class="turn-h"><span class="n">03</span> Self-verify <span class="r">12.4s</span></div>
+                <pre class="code mini"><span class="c"># GlobalTech: subtotal+tax != total</span>
+<span class="c">#   33817.9 vs 30717.9  &rarr; reconciled</span>
+wb.save(<span class="s">"invoice_extraction.xlsx"</span>)</pre>
+              </div>
+            </div>
+            <p class="note" style="margin-top:clamp(12px,1.4vw,20px)"><b>5 REPL iterations &middot; 60s &middot; $0.12</b> ($0.06/page)</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 16b — SIGNATURES UNDER THE HOOD -->
+      <section class="slide">
+        <div class="eyebrow">03 · predict-rlm · under the hood</div>
+        <h2 class="ex">predict-rlm enforces signatures between sub-lm calls</h2>
+        <div class="two" style="align-items:start; grid-template-columns: 0.86fr 1.14fr">
+          <div class="col">
+            <div class="lines tight">
+              <p class="line">Every recursive call crosses a typed boundary. The orchestrator can't pass prose to a sub-LM — it passes a <b>signature</b>.</p>
+              <p class="line"><b>DSPy enforces structure at the seam:</b> the sub-LM's reply is parsed into a Pydantic model and <b>retried on a schema miss</b> before it returns.</p>
+              <p class="line">The REPL gets back a real Python object — <span class="mono">.total</span>, <span class="mono">.line_items</span> — not a string to re-parse.</p>
+            </div>
+          </div>
+          <div class="col">
+            <div class="sv">
+              <div class="sv-node">
+                <div class="sv-cap"><span class="sv-lbl">Orchestrator</span><span class="sv-sub"><span class="mono">gpt-5.4</span> · writing REPL code</span></div>
+                <pre>inv = <span class="k">await</span> predict(
+  <span class="s">"page: dspy.Image -&gt; invoice: InvoiceModel"</span>,
+  page=render(pdf))</pre>
+              </div>
+              <div class="sv-arrow"><span class="ar">▼</span><span class="lab">typed call · <span class="mono">dspy.Image</span> in</span></div>
+              <div class="sv-node sv-contract">
+                <div class="sv-cap"><span class="sv-lbl">DSPy Signature</span><span class="sv-sub">the contract — validated both ways</span></div>
+                <pre><span class="c">IN </span> page    : <span class="t">dspy.Image</span>
+<span class="c">OUT</span> invoice : <span class="t">InvoiceModel</span>
+        vendor_name : <span class="t">str</span>
+        total       : <span class="t">float</span>
+        line_items  : <span class="t">list[LineItem]</span></pre>
+              </div>
+              <div class="sv-arrow"><span class="ar">▼</span><span class="lab">JSON reply → parsed → <span class="mono">retried on schema miss</span></span></div>
+              <div class="sv-node">
+                <div class="sv-cap"><span class="sv-lbl">Sub-LM</span><span class="sv-sub"><span class="mono">gpt-5.1</span> · returns a typed object</span></div>
+                <pre>inv.total        <span class="c"># 4086.4  (float)</span>
+inv.line_items[0]<span class="c"># LineItem(...)</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 16 — in the real world (diego testimonial) -->
+      <section class="slide center">
+        <div class="eyebrow">03 · in the real world</div>
+        <div class="slide-img-frame tall">
+          <img src="img/diego.png" alt="Tweet from diego (@diblacksmith): 'My RLM agent can effortlessly process ~80k lines of service logs from CloudWatch in a single go — worth like 8 million tokens. The cool part is, after 53 steps it had spent only 32k active tokens.' A System Update journal screenshot summarizes three errors found across 21,547 log entries.">
+        </div>
+        <p class="img-cap"><b>8M tokens</b> of CloudWatch logs, <b>~32k active</b> after 53 steps — the model paged through the context instead of holding it all at once.</p>
+      </section>
+
+      <!-- 16b — HALO ENGINE (context-labs/halo) -->
+      <section class="slide center">
+        <div class="eyebrow">03 · in the real world · HALO</div>
+        <div class="slide-img-frame light">
+          <img src="img/halo.png" alt="HALO Engine architecture: a root RLM (depth 0) invokes tools — get_dataset_overview, query_traces, count_traces, view_trace, search_trace, get_context_item, synthesis, run_code (sandboxed) — over an OpenTelemetry trace store, and spawns per-depth-parallel subagents (max 4) that recurse to a terminal grandchild depth, with a compaction model persisting context items.">
+        </div>
+        <p class="img-cap"><b>HALO</b> <span class="mono">(context-labs/halo)</span> — a recursive-LM engine over OpenTelemetry traces: the root LM navigates the trace store through tools, spawns bounded per-depth-parallel subagents, and compacts findings into persistent <b>context items</b>.</p>
+      </section>
+
+
+      <!-- 16e — SECURITY AUDIT WITH RLM -->
+      <section class="slide">
+        <div class="eyebrow">03 · dspy.RLM · security audit</div>
+        <h2 class="ex">Scanning a codebase<br>for $0.87</h2>
+        <div class="two" style="align-items:start; margin-top:clamp(8px,1vw,16px)">
+          <div class="col">
+            <div class="lines tight">
+              <p class="line">Pointed <span class="mono">dspy.RLM</span> at <b>OWASP's Damn Vulnerable Serverless App</b> — no prompt engineering, no custom scanner logic, just a signature.</p>
+              <p class="line">It decomposed the tree itself, delegated file-level reads to a cheap sub-LM, and synthesized findings back up and <b>caught 6 of 10 planted vulns</b>.</p>
+              <p class="line"><b>Missed dynamic ones:</b> auth bypass, DoS via billing abuse, TOCTOU race conditions, vulnerable dependencies.</p>
+            </div>
+            <p class="note">Write-up: <span class="mono">kmad.ai/Recursive-Language-Models-Security-Audit</span></p>
+          </div>
+          <div class="col">
+            <pre class="code scroll-x" style="font-size: 0.70em"><span class="k">import</span> dspy
+<span class="k">import</span> os
+
+<span class="k">from</span> typing <span class="k">import</span> Any
+
+<span class="c"># LM Setup - must have OPENROUTER_API_KEY set</span>
+lm = dspy.LM(<span class="s">"openrouter/moonshotai/kimi-k2.5"</span>, max_tokens=16000)
+lm_mini = dspy.LM(<span class="s">"openrouter/moonshotai/kimi-k2.5"</span>, max_tokens=16000)
+dspy.configure(lm=lm)
+
+<span class="c"># DSPy Signature & Program</span>
+<span class="k">class</span> CodeScanner(dspy.Signature):
+    <span class="s">"""
+  Review the provided application source code in detail. 
+  Focus specifically on identifying security vulnerabilities, 
+  insecure coding patterns, and other areas of concern.
+  """</span>
+    source_tree: dict[str, Any] = dspy.InputField()
+    documentation: str = dspy.OutputField(description=<span class="s">"Generated markdown documentation."</span>)
+
+<span class="k">def</span> load_source_tree(root_dir: str) <span class="o">-></span> dict[str, Any]:
+    <span class="s">"""Recursively load the folder into a nested dict."""</span>
+    tree: dict[str, Any] = {}
+    <span class="k">for</span> entry <span class="k">in</span> os.listdir(root_dir):
+        path = os.path.join(root_dir, entry)
+        <span class="k">if</span> os.path.isdir(path):
+            tree[entry] = load_source_tree(path)
+        <span class="k">else</span>:
+            <span class="k">with</span> open(path, <span class="s">"r"</span>, encoding=<span class="s">"utf-8"</span>, errors=<span class="s">"ignore"</span>) as f:
+                tree[entry] = f.read()
+    <span class="k">return</span> tree
+
+source_root = <span class="s">"~/dev/DVSA/"</span>
+source_tree = load_source_tree(source_root)
+<span class="k">del</span> source_tree[<span class="s">'CONTENT'</span>] <span class="c"># Remove the 'lessons' we will compare against.</span>
+
+code_scanner = dspy.RLM(CodeScanner, max_iterations=35, sub_lm=lm_mini, verbose=True)
+
+<span class="c"># Load and run</span>
+result = code_scanner(source_tree=source_tree)
+</pre>
+      </section>
+
+      <!-- 16e-b — SECURITY AUDIT BREAKDOWN (what it caught) -->
+      <section class="slide">
+        <div class="eyebrow">03 · dspy.RLM · security audit</div>
+        <h2 class="ex">What it caught,<br>lesson by lesson.</h2>
+        <table class="audit">
+          <thead><tr><th>Lesson</th><th>Topic</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td class="num">#1</td><td class="topic">Event Injection</td><td><span class="pill partial">Partial</span></td><td class="notes">Caught S3 command injection; missed node-serialize code injection</td></tr>
+            <tr><td class="num">#2</td><td class="topic">Broken Authentication</td><td><span class="pill missed">Missed</span></td><td class="notes">JWT bypass &amp; open billing API not documented</td></tr>
+            <tr><td class="num">#3</td><td class="topic">Sensitive Info Disclosure</td><td><span class="pill caught">Caught</span></td><td class="notes">Admin receipt access via S3</td></tr>
+            <tr><td class="num">#4</td><td class="topic">Insecure Cloud Config</td><td><span class="pill caught">Caught</span></td><td class="notes">S3 public write &amp; command injection</td></tr>
+            <tr><td class="num">#5</td><td class="topic">Broken Access Control</td><td><span class="pill partial">Partial</span></td><td class="notes">Caught IDOR/privilege escalation; missed payment bypass</td></tr>
+            <tr><td class="num">#6</td><td class="topic">Denial of Service</td><td><span class="pill missed">Missed</span></td><td class="notes">Billing concurrency abuse not mentioned</td></tr>
+            <tr><td class="num">#7</td><td class="topic">Over-Privileged Functions</td><td><span class="pill caught">Caught</span></td><td class="notes">Comprehensive IAM policy violations</td></tr>
+            <tr><td class="num">#8</td><td class="topic">Logic Vulnerabilities</td><td><span class="pill missed">Missed</span></td><td class="notes">Race condition/TOCTOU not documented</td></tr>
+            <tr><td class="num">#9</td><td class="topic">Vulnerable Dependencies</td><td><span class="pill missed">Missed</span></td><td class="notes">node-serialize, node-jose, shell-quote not mentioned</td></tr>
+            <tr><td class="num">#10</td><td class="topic">Unhandled Exceptions</td><td><span class="pill partial">Partial</span></td><td class="notes">Generic error disclosure noted; specific examples missed</td></tr>
+          </tbody>
+        </table>
+        <p class="audit-sum"><b class="caught">3 caught</b> · <b class="partial">3 partial</b> · <b class="missed">4 missed</b> — every miss was <b>runtime behavior</b> static reading can't see.</p>
+      </section>
+
+      <!-- 18 — CLOSE -->
+      <section class="slide center">
+        <div class="eyebrow">what's next?</div>
+        <h2 class="long" style="text-align:center; max-width:24ch">Imagine models post-trained to be RLM-native...</h2>
+        <div class="links">
+          <a href="https://kmad.ai">kmad.ai</a> &nbsp;·&nbsp; <a href="https://x.com/kmad">@kmad</a> &nbsp;·&nbsp; <br /><br /><a href="https://arxiv.org/abs/2512.24601">RLM paper: arxiv 2512.24601</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <nav class="dots" id="dots" aria-label="Slides"></nav>
+  <div class="arrows">
+    <button type="button" id="prev" aria-label="Previous">‹</button>
+    <button type="button" id="next" aria-label="Next">›</button>
+  </div>
+  <div class="brand">kmad.ai</div>
+
+  <script>
+    const track = document.getElementById('track');
+    const slides = Array.from(track.querySelectorAll('.slide'));
+    const dotWrap = document.getElementById('dots');
+    let index = 0;
+
+    const cohortFrames = [
+      {
+        turn: '1 / 7',
+        reason: 'First, explore the data — shapes, date ranges, status values, acquisition channels, and event types. <b>Define metrics only after understanding the schema.</b>',
+        code: 'print(<span class="k">"users shape:"</span>, users.shape)          <span class="c"># (10000, 7)</span>\nprint(<span class="k">"events shape:"</span>, events.shape)        <span class="c"># (250918, 5)</span>\nprint(<span class="k">"subscriptions shape:"</span>, subscriptions.shape)\n\nprint(users[<span class="k">"acquisition_channel"</span>].value_counts())\nprint(subscriptions[<span class="k">"status"</span>].value_counts())\nprint(events[<span class="k">"event_type"</span>].value_counts().head(10))',
+        step: 0,
+      },
+      {
+        turn: '2 / 7',
+        reason: 'Define churn as <b>cancelled / total</b>. Merge users + subscriptions, compute overall rate and retention by signup month.',
+        code: 'base = users.merge(subscriptions, on=<span class="k">"user_id"</span>, how=<span class="k">"inner"</span>, suffixes=(<span class="k">"_user"</span>, <span class="k">"_sub"</span>))\nbase[<span class="k">"is_churned"</span>] = base[<span class="k">"status"</span>].eq(<span class="k">"cancelled"</span>)\nbase[<span class="k">"signup_month"</span>] = base[<span class="k">"signup_date"</span>].dt.to_period(<span class="k">"M"</span>).astype(str)\n\noverall_churn_rate = base[<span class="k">"is_churned"</span>].mean()  <span class="c"># 0.2377</span>\n\ncohort_stats = (\n    base.groupby(<span class="k">"signup_month"</span>)\n    .agg(users=(<span class="k">"user_id"</span>, <span class="k">"count"</span>), churn_rate=(<span class="k">"is_churned"</span>, <span class="k">"mean"</span>))\n    .sort_index()\n)',
+        step: 1,
+      },
+      {
+        turn: '2 / 7',
+        reason: 'Segment by acquisition channel. <b>paid_campaign_x</b> is the outlier — ~45% churn vs ~16% organic, across <b>every cohort and plan</b>.',
+        code: 'channel_stats = (\n    base.groupby(<span class="k">"acquisition_channel"</span>)\n    .agg(\n        users=(<span class="k">"user_id"</span>, <span class="k">"count"</span>),\n        churn_rate=(<span class="k">"is_churned"</span>, <span class="k">"mean"</span>),\n        avg_mrr=(<span class="k">"mrr"</span>, <span class="k">"mean"</span>)\n    )\n    .sort_values(<span class="k">"churn_rate"</span>, ascending=False)\n)\n<span class="c"># paid_campaign_x → 0.4476  ← worst</span>\n<span class="c"># organic         → 0.1578</span>\n\ncohort_channel = (\n    base.groupby([<span class="k">"signup_month"</span>, <span class="k">"acquisition_channel"</span>])[<span class="k">"is_churned"</span>]\n    .mean().unstack()\n)',
+        step: 2,
+      },
+      {
+        turn: '3 / 7',
+        reason: 'Engagement <i>volume</i> isn\'t lower for churned users — not simple inactivity. Compare feature adoption in the <b>first 14 days</b> after signup.',
+        code: 'ue = base.merge(events, on=<span class="k">"user_id"</span>, how=<span class="k">"left"</span>)\nue[<span class="k">"days_from_signup"</span>] = (ue[<span class="k">"timestamp"</span>] - ue[<span class="k">"signup_date"</span>]).dt.days\nearly = ue[(ue[<span class="k">"days_from_signup"</span>] >= 0) &amp; (ue[<span class="k">"days_from_signup"</span>] &lt;= 14)]\n\nfeature_adoption = (\n    early.assign(value=1)\n    .pivot_table(index=<span class="k">"user_id"</span>, columns=<span class="k">"event_type"</span>, values=<span class="k">"value"</span>, aggfunc=<span class="k">"max"</span>, fill_value=0)\n    .reset_index()\n)\nadoption_by_status = feature_adoption.groupby(<span class="k">"status"</span>)[event_cols].mean().T\n<span class="c"># advanced_reports: active 0.341 vs cancelled 0.189</span>',
+        step: 3,
+      },
+      {
+        turn: '4 / 7',
+        reason: 'The signal: <b>advanced_reports</b>. Adopters churn 14.7% vs 27.7%. paid_campaign_x adoption is only <b>18.7%</b> — half of organic.',
+        code: 'fa[<span class="k">"used_advanced_reports"</span>] = fa[<span class="k">"advanced_reports"</span>] &gt; 0\n\nfa.groupby(<span class="k">"used_advanced_reports"</span>)[<span class="k">"is_churned"</span>].agg([<span class="k">"mean"</span>, <span class="k">"count"</span>])\n<span class="c"># False → 0.277   True → 0.147</span>\n\nfa.groupby([<span class="k">"acquisition_channel"</span>, <span class="k">"used_advanced_reports"</span>])[<span class="k">"is_churned"</span>].mean()\n<span class="c"># paid_campaign_x + no adoption → 0.551</span>\n<span class="c"># paid_campaign_x + adoption    → 0.000</span>\n\nfa.groupby(<span class="k">"acquisition_channel"</span>)[<span class="k">"used_advanced_reports"</span>].mean()\n<span class="c"># paid_campaign_x → 0.187   organic → 0.352</span>',
+        step: 4,
+      },
+      {
+        turn: '5 / 7',
+        reason: 'Verify the pattern holds across cohorts, then prepare structured outputs for <span style="font-family:var(--mono)">SUBMIT</span>.',
+        code: 'worst_channel = channel_stats[<span class="k">"churn_rate"</span>].idxmax()\n<span class="c"># → paid_campaign_x</span>\n\npcx = fa[fa[<span class="k">"acquisition_channel"</span>] == <span class="k">"paid_campaign_x"</span>]\nprint(pd.crosstab(pcx[<span class="k">"used_advanced_reports"</span>], pcx[<span class="k">"status"</span>], margins=True))\n\nkey_finding_out = (\n    <span class="k">"Churn is 23.77% overall, and paid_campaign_x is the clear outlier..."</span>\n)',
+        step: 5,
+      },
+      {
+        turn: '6 / 7',
+        reason: '<b>KeyError:</b> <span style="font-family:var(--mono)">signup_month</span> missing from the verification table. Model reads the traceback and patches the merge.',
+        code: 'fa = feature_adoption.merge(\n    base[[<span class="k">"user_id"</span>, <span class="k">"signup_month"</span>]], on=<span class="k">"user_id"</span>, how=<span class="k">"left"</span>\n)\n\nprint(pcx.groupby(<span class="k">"signup_month"</span>)[<span class="k">"used_advanced_reports"</span>].mean())\nprint(\n    pcx.groupby([<span class="k">"signup_month"</span>, <span class="k">"used_advanced_reports"</span>])[<span class="k">"is_churned"</span>]\n    .agg([<span class="k">"mean"</span>, <span class="k">"count"</span>])\n)',
+        step: 5,
+      },
+      {
+        turn: '7 / 7',
+        reason: 'Second fix — rebuild <span style="font-family:var(--mono)">used_advanced_reports</span> cleanly, re-run sanity checks, then submit.',
+        code: 'fa = feature_adoption.merge(\n    base[[<span class="k">"user_id"</span>, <span class="k">"signup_month"</span>, <span class="k">"is_churned"</span>, <span class="k">"status"</span>, <span class="k">"acquisition_channel"</span>, <span class="k">"plan"</span>]],\n    on=[<span class="k">"user_id"</span>, <span class="k">"is_churned"</span>, <span class="k">"status"</span>, <span class="k">"acquisition_channel"</span>, <span class="k">"plan"</span>],\n    how=<span class="k">"left"</span>\n).copy()\nfa[<span class="k">"used_advanced_reports"</span>] = fa[<span class="k">"advanced_reports"</span>] &gt; 0\n\nSUBMIT(overall_churn_rate_out, worst_channel_out, key_finding_out, recommendations_out)',
+        step: 5,
+        done: true,
+      },
+    ];
+
+    let cohortFrame = -1;
+    const cohortSlide = document.querySelector('[data-animate="cohort"]');
+    const cohortSteps = Array.from(document.querySelectorAll('#cohort-steps .step'));
+    const cohortReason = document.getElementById('cohort-reason');
+    const cohortCode = document.getElementById('cohort-code');
+    const cohortTurn = document.getElementById('cohort-turn');
+    const cohortThought = document.getElementById('cohort-thought');
+    const cohortCap = document.getElementById('cohort-cap');
+    const cohortHint = document.getElementById('cohort-hint');
+
+    function resetCohortAnim() {
+      cohortFrame = -1;
+      cohortSteps.forEach((s) => s.classList.remove('active', 'done'));
+      cohortReason.textContent = '';
+      cohortCode.innerHTML = '';
+      cohortTurn.textContent = '';
+      cohortThought.classList.remove('active', 'done');
+      cohortCap.hidden = true;
+      cohortHint.hidden = false;
+      cohortHint.innerHTML = '<kbd>→</kbd> or <kbd>Space</kbd> to step through';
+      cohortAdvance();
+    }
+
+    function renderCohortFrame() {
+      const f = cohortFrames[cohortFrame];
+      if (!f) return;
+      cohortTurn.textContent = `turn ${f.turn}`;
+      cohortReason.innerHTML = f.reason;
+      cohortCode.innerHTML = f.code;
+      cohortThought.classList.add('active');
+      cohortThought.classList.toggle('done', !!f.done);
+
+      cohortSteps.forEach((s, i) => {
+        s.classList.remove('active', 'done');
+        if (i < f.step) s.classList.add('done');
+        else if (i === f.step) s.classList.add(f.done ? 'done' : 'active');
+      });
+
+      if (f.done) {
+        cohortCap.hidden = false;
+        cohortHint.hidden = false;
+        cohortHint.textContent = 'Done — → for next slide';
+      } else {
+        cohortCap.hidden = true;
+        cohortHint.hidden = false;
+        cohortHint.innerHTML = `<kbd>→</kbd> step ${cohortFrame + 1} / ${cohortFrames.length}`;
+      }
+    }
+
+    function cohortAdvance() {
+      if (cohortFrame >= cohortFrames.length - 1) return false;
+      cohortFrame += 1;
+      renderCohortFrame();
+      return true;
+    }
+
+    function cohortRetreat() {
+      if (cohortFrame <= 0) return false;
+      cohortFrame -= 1;
+      renderCohortFrame();
+      return true;
+    }
+
+    // ---- slide 5: context window vs. variable ----
+    const flowFrames = [
+      {
+        badge: 'RAG', sub: 'retrieval-augmented generation', row: 0, fill: 55,
+        storeHead: 'CORPUS · ~10M tokens, embedded', storeVar: false,
+        arrow: '↓ retriever copies top-k passages in',
+        meter: 'window ~55% full',
+        win: 'query: <span class="s">"why is retention dropping?"</span>\n<span class="hl">‣ passage 1</span>  …churn rose in Q3…\n<span class="hl">‣ passage 2</span>  …paid-channel CAC up…\n<span class="hl">‣ passage 3</span>  …feature-usage dip…',
+        take: 'Top-k chunks are <b>copied into the window</b>. One shot — miss the passage, miss the answer.',
+      },
+      {
+        badge: 'Agents', sub: 'decompose · delegate · merge', row: 1, fill: 95, winState: 'overflow',
+        storeHead: 'TASK · fanned out to sub-agents', storeVar: false,
+        arrow: '↓ every sub-result appended to root',
+        meter: 'window ~95% — context rot',
+        win: 'task: analyze churn drivers\n<span class="hl">← sub-agent A</span>  1,840 tok result\n<span class="hl">← sub-agent B</span>  2,310 tok result\n<span class="hl">← sub-agent C</span>  1,990 tok result\n<span class="warn">← sub-agent D … window saturating</span>',
+        take: 'Every sub-result <b>flows back into root context</b>. It fills — and rots — as the task grows.',
+      },
+      {
+        badge: 'CodeAct', sub: 'code execution as a tool', row: 2, fill: 80,
+        storeHead: 'DATA · read by tool calls', storeVar: false,
+        arrow: '↓ tool output returned into window',
+        meter: 'window ~80% full',
+        win: '<span class="k">code</span>  df = read_csv(<span class="s">"events.csv"</span>)\n<span class="hl">← result</span>  250,918 rows · head dumped in\n<span class="k">code</span>  df.describe()\n<span class="hl">← result</span>  …summary stats inlined…',
+        take: 'Code is a <b>tool the model calls</b> — but the output lands back in the window. Data still piles up.',
+      },
+      {
+        badge: 'RLM', sub: 'context as environment', row: 3, fill: 15, winState: 'lean',
+        storeHead: 'ctx · 10M tokens — a variable, stays put', storeVar: true,
+        arrow: '↓ only peeks & matches cross (~600 chars)',
+        meter: 'window ~15% — bulk never enters',
+        win: 'ctx = load(docs)        <span class="c"># 10M tokens, not in prompt</span>\npeek(ctx)               <span class="c"># 600-char preview</span>\ngrep(ctx, <span class="s">"churn"</span>)      <span class="c"># only matches return</span>\nsub_lm(chunk)           <span class="c"># recurse on a slice</span>',
+        take: 'Context is a <b>variable in the environment</b>. The model never sees the bulk — it navigates it with code.',
+      },
+    ];
+
+    let flowFrame = -1;
+    const flowSlide = document.querySelector('[data-animate="flow"]');
+    const flowRows = Array.from(document.querySelectorAll('#flow-table tbody tr'));
+    const flowLabel = document.getElementById('flow-label');
+    const flowBadge = document.getElementById('flow-badge');
+    const flowSub = document.getElementById('flow-sub');
+    const flowStore = document.getElementById('flow-store');
+    const flowStoreHead = document.getElementById('flow-store-head');
+    const flowStoreBody = document.getElementById('flow-store-body');
+    const flowArrow = document.getElementById('flow-arrow');
+    const flowWindow = document.getElementById('flow-window');
+    const flowWinBody = document.getElementById('flow-win-body');
+    const flowFill = document.getElementById('flow-fill');
+    const flowMeter = document.getElementById('flow-meter');
+    const flowTake = document.getElementById('flow-take');
+    const flowHint = document.getElementById('flow-hint');
+
+    function renderFlowFrame() {
+      const f = flowFrames[flowFrame];
+      if (!f) return;
+      flowBadge.textContent = f.badge;
+      flowSub.textContent = f.sub;
+      flowLabel.classList.toggle('rlm', !!f.storeVar);
+      flowStoreHead.textContent = f.storeHead;
+      flowStore.classList.toggle('var', !!f.storeVar);
+      flowArrow.innerHTML = `<span class="a">${f.arrow}</span>`;
+      flowWinBody.innerHTML = f.win;
+      flowWindow.classList.remove('overflow', 'lean');
+      if (f.winState) flowWindow.classList.add(f.winState);
+      flowFill.style.width = `${f.fill}%`;
+      flowMeter.textContent = f.meter;
+      flowTake.innerHTML = f.take;
+      flowRows.forEach((r, i) => r.classList.toggle('on', i === f.row));
+
+      if (flowFrame >= flowFrames.length - 1) {
+        flowHint.textContent = 'Done — → for next slide';
+      } else {
+        flowHint.innerHTML = `<kbd>→</kbd> ${flowFrame + 1} / ${flowFrames.length} · next: ${flowFrames[flowFrame + 1].badge}`;
+      }
+    }
+
+    function resetFlowAnim() {
+      flowFrame = -1;
+      flowRows.forEach((r) => r.classList.remove('on'));
+      flowStoreBody.innerHTML = Array.from({ length: 28 }, () => '<i></i>').join('');
+      flowHint.hidden = false;
+      flowHint.innerHTML = '<kbd>→</kbd> or <kbd>Space</kbd> to step through';
+      flowAdvance();
+    }
+
+    function flowAdvance() {
+      if (flowFrame >= flowFrames.length - 1) return false;
+      flowFrame += 1;
+      renderFlowFrame();
+      return true;
+    }
+
+    function flowRetreat() {
+      if (flowFrame <= 0) return false;
+      flowFrame -= 1;
+      renderFlowFrame();
+      return true;
+    }
+
+    // registry of step-through slides
+    const animated = [
+      { el: cohortSlide, reset: resetCohortAnim, advance: cohortAdvance, retreat: cohortRetreat,
+        atEnd: () => cohortFrame >= cohortFrames.length - 1, atStart: () => cohortFrame <= 0 },
+      { el: flowSlide, reset: resetFlowAnim, advance: flowAdvance, retreat: flowRetreat,
+        atEnd: () => flowFrame >= flowFrames.length - 1, atStart: () => flowFrame <= 0 },
+    ];
+    const stepperFor = (slide) => animated.find((a) => a.el === slide);
+
+    slides.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', `Slide ${i + 1}`);
+      if (s.hasAttribute('data-sec')) b.classList.add('sec');
+      b.addEventListener('click', () => show(i));
+      dotWrap.appendChild(b);
+    });
+    const dots = Array.from(dotWrap.children);
+
+    function show(next) {
+      const prev = index;
+      index = Math.max(0, Math.min(slides.length - 1, next));
+      track.style.transform = `translateX(-${index * 100}%)`;
+      slides.forEach((s, i) => s.classList.toggle('active', i === index));
+      dots.forEach((d, i) => d.classList.toggle('on', i === index));
+      const st = stepperFor(slides[index]);
+      if (st && prev !== index) st.reset();
+      const hash = `slide-${index + 1}`;
+      if (location.hash !== `#${hash}`) history.replaceState(null, '', `#${hash}`);
+    }
+
+    function advance() {
+      const st = stepperFor(slides[index]);
+      if (st && !st.atEnd()) { st.advance(); return; }
+      show(index + 1);
+    }
+
+    function retreat() {
+      const st = stepperFor(slides[index]);
+      if (st && !st.atStart()) { st.retreat(); return; }
+      show(index - 1);
+    }
+
+    function fromHash() {
+      const m = location.hash.match(/slide-(\d+)/);
+      show(m ? Number(m[1]) - 1 : 0);
+    }
+
+    document.getElementById('next').addEventListener('click', () => advance());
+    document.getElementById('prev').addEventListener('click', () => retreat());
+    window.addEventListener('hashchange', fromHash);
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); advance(); }
+      if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); retreat(); }
+      if (e.key === 'Home') show(0);
+      if (e.key === 'End') show(slides.length - 1);
+    });
+    fromHash();
+  </script>
+</body>
+</html>
