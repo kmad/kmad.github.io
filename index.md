@@ -11,7 +11,11 @@ layout: home
 <h2 class="post-list-heading">Talks</h2>
 <ul class="post-list">
   <li>
-    <span class="post-meta">Jul 11, 2026</span>
+    <span class="post-meta">Jul 2, 2026</span>
+    <h3> <a class="post-link" href="https://www.mts.now/guests/kmad">MTS Guest Appearance</a> </h3>
+  </li>
+  <li>
+    <span class="post-meta">Jul 1, 2026</span>
     <h3>
       <a class="post-link" href="{{ '/rlm-talk/' | relative_url }}">
         Recursive Language Models — Context as Environment
